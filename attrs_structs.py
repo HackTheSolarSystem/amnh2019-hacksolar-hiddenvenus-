@@ -106,6 +106,9 @@ class RecordTypes:
         return ret
 
     # Assumes that the 1st bit in bits is the least significant.
+    # "fraction" here refers to the mantissa of a floating point
+    # number, the terminology used by the NASA report on Magellan
+    # data.
     @staticmethod
     def _fraction_from_bits(*bits):
         accum = 0
@@ -116,6 +119,12 @@ class RecordTypes:
         # if there's n bits, then power starts at -1 and ends at -n.
         power = -len(bits)
 
+        # NOTE: The order of accumulation is important. Starting from
+        # small amounts reduces possibility of rounding errors.
+        # Though... in truth, I'm not sure if that matters for this
+        # particular application. All of the values should be things
+        # that could fit in the mantissa of a typical IEEE 754
+        # floating point number. And they always will be.
         for bit in bits:
             accum = accum + bit * 2 ** power
             power = power + 1
@@ -123,7 +132,7 @@ class RecordTypes:
         return 1.0 + accum
 
     # NOTE: These are not IEEE 754 floating point numbers. Their
-    # format is very different, as is the bias on the exponent (-128,
+    # format is different, as is the bias on the exponent (-128,
     # instead of IEEE 754's -127).
     class Single_float:
         def __init__(self):
@@ -269,8 +278,5 @@ class RecordTypes:
 # act on that.
 
 # TODO:
-# - An unnamed series of records could be signified by a list. For
-#   instance: R.Series(temp_coefficients=3*[R.Single_float()]). Rather
-#   than naming each of the three temp coefficients, I feed in a list
-#   of three record functions, have them all be read contiguously and
-#   give a name to the three as a whole.
+# - Improve on this to allow references to sibling records (I think
+#   this is done).
