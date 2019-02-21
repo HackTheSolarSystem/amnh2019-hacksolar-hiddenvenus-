@@ -6,61 +6,6 @@
 # ascii letters, or an integer.
 # All Interpretations return a result of some kind, like a number or
 # some string.
-class Interpretations:
-    # the source argument is always a bytes object.
-    # start and length are always bytes.
-    # It's assumed that signed integers are in two's complement.
-    # The most significant bit is in the most significant byte, which
-    # is last.
-    @staticmethod
-    def integer(source, signed=False):
-        big_endian = source[::-1]
-        if signed:
-            # Is the most significant bit equal to 1?
-            nonnegative = big_endian[-1] < 0x80
-            if nonnegative:
-                return int(big_endian.hex(), 16)
-            else:
-                positive = int((~big_endian).hex(), 16) + 1
-                return -positive
-        else:
-            return int(big_endian.hex(), 16)
-    @staticmethod
-    def ascii_integer(source):
-        return int(source.decode('ascii'), 10)
-    @staticmethod
-    def ascii_string(source):
-        return source.decode('ascii')
-    @staticmethod
-    def plain(source):
-        return source
-    # For now, enumeration is a dict of the form "unsigned integer : what it
-    # means"
-    @staticmethod
-    def enumeration(source, enum):
-        return lambda src: enum[Interpretations.integer(source)]
-
-# This is a record function:
-# It takes a bytes object, and returns an interpretation of some of
-# the bytes, and returns the bytes that it does not use:
-def ascii_string_length_4(source):
-    return source[0:4].decode('ascii'), source[4:]
-
-# A record function can consume all the bytes that it's given. Here
-# are two examples:
-
-# Really simple, just consume all the bytes. Though common enough.
-def plain_bytes(source):
-    return source
-
-# the whole source may be one c_string, and thus consume all the
-# bytes. Though it may not.
-def c_string(source):
-    end = source.find(0)
-    if end == -1:
-        return source.decode('ascii'), bytes()
-    else:
-        return source[:end].decode('ascii'), source[end:]
 
 # Convenient composition of these records into larger records requires
 # some metadata, like knowledge of how many bytes will be consumed.
@@ -79,9 +24,22 @@ def c_string(source):
 # Compositions of bytes return dicts or named tuples. haven't decided.
 # It's not super important, anyhow.
 
+def dictPath(dic, path):
+    if path in ['', '/']:
+        return dic
+
+    curVal = dic
+    for element in [x for x in path.split('/') if x != '']:
+        if element in curVal:
+            curVal = curVal[element]
+        else:
+            raise KeyError
+
+    return curVal
+
 class RecordTypes:
     # Integer is little endian.
-    class integer:
+    class Integer:
         def __init__(self, length, signed=False):
             self.length = length
             self.signed = signed
@@ -92,7 +50,7 @@ class RecordTypes:
                     signed=self.signed)
             return number, source[self.length:]
 
-    class fixed_length_string:
+    class Fixed_length_string:
         def __init__(self, length):
             self.length = length
 
@@ -100,14 +58,14 @@ class RecordTypes:
             return source[:self.length].decode('ascii'), source[self.length:]
 
     # decimal integer
-    class ascii_integer:
+    class Ascii_integer:
         def __init__(self, length):
             self.length = length
 
         def __call__(self, source):
             return int(source[:self.length].decode('ascii')), source[self.length:]
 
-    class plain_bytes:
+    class Plain_bytes:
         def __init__(self, length='unknown'):
             self.length = length
 
@@ -167,7 +125,7 @@ class RecordTypes:
     # NOTE: These are not IEEE 754 floating point numbers. Their
     # format is very different, as is the bias on the exponent (-128,
     # instead of IEEE 754's -127).
-    class single_float:
+    class Single_float:
         def __init__(self):
             self.length = 4
 
@@ -183,7 +141,7 @@ class RecordTypes:
             value = sign * fraction * 2 ** exponent
             return value, source[self.length:]
 
-    class double_float:
+    class Double_float:
         def __init__(self):
             self.length = 8
 
@@ -198,70 +156,121 @@ class RecordTypes:
             fraction = RecordTypes._fraction_from_bits(*bits[16:], *bits[:7])
             value = sign * fraction * 2 ** exponent
             return value, source[self.length:]
-            
-# for the data annotation label, I may need to allow decision making
-# (feels like overkill), or something else. Because there's different
-# formats for the data annotation label (even empty) based on what the
-# data is. The only reason for trying to do this is for trying to
-# maintain a completely declarative description.
 
-# For the time being, I'll describe each data annotation for each kind
-# of data separately.
+    # This is slightly different from the other functions, and only
+    # makes sense with a Series record. This allows one to use the
+    # value interpreted by a record to decide what record to use. This
+    # way, information in a binary file can influence how later parts
+    # of the file are interpreted.
+    # Outside of a series record, there is no other information to
+    # consider, thus this only makes sense when there are other
+    # records.
+    # referred_record : The name of a sibling record (another record
+    # in the same Series record), or a path to the record, relative to
+    # the outermost Series record).
+    # action : A function which accepts a single value and produces a
+    # record function, like RecordTypes.Integer(2), for instance.
+    class If:
+        def __init__(self, referred_record, action):
+            self.record_path = referred_record
+            self.action = action
 
-def image_data_annoation_label(source):
-    records = [
-        ('image line count', RecordTypes.integer(2)),
-        ('image line length', RecordTypes.integer(2)),
-        ('projection origin latittude', RecordTypes.single_float()),
-        ('projection origin longitude', RecordTypes.single_float()),
-        ('reference point latitude', RecordTypes.single_float()),
-        ('reference point offset in lines', 
-            RecordTypes.integer(4, signed=True)),
-        ('reference point offset in pixels', 
-            RecordTypes.integer(4, signed=True)),
-        ('burst counter', RecordTypes.integer(4)),
-        ('nav unique id', RecordTypes.fixed_length_string(32)),
-    ]
+        def __call__(self, source, record_value):
+            return self.action(record_value)(source)
 
-    remaining_source = source
-    filled_records = []
-    for record in records:
-        value, remaining_source = record[1](remaining_source)
-        filled_records.append((record[0], value))
+    # For a series of contiguous records.
+    # Each record has a name. A few names may be reserved for special
+    # things. The names of keyword arguments are the names of the
+    # records, and the arguments are record functions.
+    class Series:
+        # NOTE: If I wanted to throw early errors where I KNOW
+        # something is wrong just based on the order/type of records
+        # given, here's the place to do it (eg having a record after
+        # Plain_bytes with an unknown length, there should be no bytes
+        # to read after that).
+        def __init__(self, **records):
+            self.records = records
 
-    return dict(filled_records), remaining_source
+        def __call__(self, source, parentDict=None, givenDict=None):
+            remaining_source = source
+            filled_records = {} if givenDict is None else givenDict
 
-def annotation_block(source):
-    length = 'unknown'
-    remaining_length = 'unknown'
-    records = [
-        ('data class', RecordTypes.integer(1)),
-        ('remaining_record_length', RecordTypes.integer(2)),
-        ('data annotation label', RecordTypes.plain_bytes()),
-    ]
+            # What needs special handling?
+            # - reserved names for records, which should be handled
+            #   specifically.
+            # - Things of unknown length. They rely on knowing things
+            #   about the current record.
+            # - other Series type records.
+            #   - This oughta work for a valid series of basic records.
+            #     This alone. In fact, it should work even if one of
+            #     the records is itself a series. Just so long as
+            #     everything is of a fixed length, contiguous in
+            #     memory.
+            #   - Things should change if I want to allow references
+            #     to other values of records. A name needs to be able
+            #     to refer to the record that it looks up, and that
+            #     name may refer to a "parent" series. Thus, children
+            #     series need to be able to see their parent. So I
+            #     need to pass in the parent. Maybe the best way to do
+            #     this is to just pass in the whole current dictionary
+            # - If type records.
+            for name, func in self.records.items():
+                if isinstance(func, RecordTypes.Series):
+                    to_fill = {}
+                    value, remaining_source = func(
+                            remaining_source, filled_records, to_fill)
+                elif isinstance(func, RecordTypes.If):
+                    if '/' in func.record_path:
+                        record_val = filled_records[func.record_path]
+                    else:
+                        record_val = dictPath(filled_records, func.record_path)
+                    value, remaining_source = func(remaining_source,
+                            record_val)
+                else:
+                    value, remaining_source = func(remaining_source)
+                filled_records[name] = value
 
-    remaining_source = source
-    filled_records = []
-    for record in records:
-        name, recordType = record
-        if name == 'remaining_record_length':
-            remaining_length, remaining_source = recordType(remaining_source)
-            # What would I do here if I didn't know if
-            # remaining_record_length would show up at all?
-            remaining_source = source[:remaining_length]
-            source_to_return = source[remaining_length:]
-        else:
-            value, remaining_source = recordType(remaining_source)
-            filled_records.append((name, value))
+            return dict(filled_records), remaining_source
 
-    return dict(filled_records), source_to_return
+    # For a series of records that are named as one group rather than
+    # indidivually. For example, the radiometer data annotation labels
+    # contains some data describing the temperature of 5 segments of
+    # cable (in the magellan spacecraft, probably). Rather than name
+    # each individual one, as with 
+    #   series = R.Series(one=R.Single_float(), two=R.Single_float(), ...)
+    # name the whole:
+    #   lst = R.List(5*[R.Single_float()])
+    # NOTE: For now, list only supports basic records, that is any
+    # record that requires only a source. Thus If is not a basic
+    # record.
+    class List:
+        def __init__(self, record_list):
+            self.record_list = record_list
 
-def secondary_header(source):
-    record_length = 'unknown'
-    remaining_record_length = 'unknown'
-    records = [
-        ('BIDR secondary label type', RecordTypes.integer(2)),
-        ('remaining_record_length', RecordTypes.integer(2)),
-        ('orbit number', RecordTypes.integer(2)),
-        ('annotation block', RecordTypes.plain_bytes()),
-    ]
+        def __call__(self, source):
+            remaining_source = source
+            values = []
+            for record in self.record_list:
+                value, remaining_source = record(remaining_source)
+                values.append(value)
+
+            return values, remaining_source
+
+# I've made a little error in reasoning. I figured that
+# compose_records would be recursive. Basically, the input was either
+# a series of simple records, or at least one of the records needed to
+# be composed, too, and compose_records would take care of making
+# those recursive calls. And this was under the assumtpion that the
+# user would make calls to compose_records while making record
+# functions. This can't be the case, unless I want the user to have to
+# manually construct the paths for things (paths for referring to
+# future values of records). So I'll have to make a way to signify
+# that something is a series of records, and then have compose records
+# act on that.
+
+# TODO:
+# - An unnamed series of records could be signified by a list. For
+#   instance: R.Series(temp_coefficients=3*[R.Single_float()]). Rather
+#   than naming each of the three temp coefficients, I feed in a list
+#   of three record functions, have them all be read contiguously and
+#   give a name to the three as a whole.
