@@ -134,25 +134,14 @@ class RecordTypes:
     # NOTE: These are not IEEE 754 floating point numbers. Their
     # format is different, as is the bias on the exponent (-128,
     # instead of IEEE 754's -127).
-    class Single_float:
-        def __init__(self):
-            self.length = 4
-
-        def __call__(self, source):
-            bits = RecordTypes._bytes_to_bits(source[:self.length])
-            exponent = RecordTypes._bytes_from_bits(*bits[7:15])
-            if exponent == 0:
-                return float(0), source[self.length:]
-
-            exponent = exponent - 128
-            sign = 1 if bits[15] == 0 else -1
-            fraction = RecordTypes._fraction_from_bits(*bits[16:], *bits[:7])
-            value = sign * fraction * 2 ** exponent
-            return value, source[self.length:]
-
-    class Double_float:
-        def __init__(self):
-            self.length = 8
+    class Float:
+        def __init__(self, Type):
+            if Type == 'single':
+                self.length = 4
+            elif Type == 'double':
+                self.length = 8
+            else:
+                raise ValueError
 
         def __call__(self, source):
             bits = RecordTypes._bytes_to_bits(source[:self.length])
@@ -241,6 +230,26 @@ class RecordTypes:
 
             return dict(filled_records), remaining_source
 
+    # Takes a list of functions, the first one of which must be a
+    # plain record function. A function that takes just a source. The
+    # remaining functions can just take the output from the previous
+    # function. 
+    class Pipe:
+        def __init__(self, *functions):
+            if len(functions) == 0:
+                raise ValueError("At least 1 function must be provided to Pipe. " + 
+                                 "Received none.")
+            self.functions = functions
+
+        def __call__(self, source):
+            cur_val, remaining_source = functions[0](source)
+
+            for function in self.functions[1:]:
+                cur_val = function(cur_val)
+
+            return cur_val, remaining_source
+
+
     # For a series of records that are named as one group rather than
     # indidivually. For example, the radiometer data annotation labels
     # contains some data describing the temperature of 5 segments of
@@ -280,3 +289,7 @@ class RecordTypes:
 # TODO:
 # - Improve on this to allow references to sibling records (I think
 #   this is done).
+# - Solidify this concept of a "basic record". What is it? Is is just
+#   a record of fixed length which requires no information aside from
+#   the binary source to read stuff from? Does it have to know its
+#   length?
