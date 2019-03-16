@@ -32,7 +32,6 @@ def dict_path(dic, path):
 
     cur_val = dic
     elements = [x for x in path.split('/') if x != '']
-    #print(dic)
     for element in elements:
         if element in cur_val:
             cur_val = cur_val[element]
@@ -164,7 +163,6 @@ class RecordTypes:
             value = sign * fraction * 2 ** exponent
             return value, source[self.length:]
 
-    # 
     class If:
         """Slightly different from other records. Only makes sense
         with a Series record. This allows one to use the value
@@ -178,19 +176,20 @@ class RecordTypes:
         Parameters
         ==========
 
-        referred_record, str : The name of a sibling record (another
-            record in the same Series record), or a path to the
-            record, relative to the outermost Series record).  
-        action : A function which accepts a single value and produces
-            a record function, like RecordTypes.Integer, for instance.
-            If given the value 2, then RecordTypes.Integer(2) produces
-            a record function that reads a 2 byte long integer.
+        referred_record, callable : A function which takes in the root
+            record and returns an existing value in the root record.
+        action, callable : A function which accepts a single value and
+            produces a record function, like RecordTypes.Integer, for
+            instance.  If given the value 2, then
+            RecordTypes.Integer(2) produces a record function that
+            reads a 2 byte long integer.
         """
         def __init__(self, referred_record, action):
-            self.record_path = referred_record
+            self.referred_record = referred_record
             self.action = action
 
-        def __call__(self, source, record_value):
+        def __call__(self, source, root_record):
+            value = self.referred_record(root_record)
             return self.action(record_value)(source)
 
     # For a series of contiguous records.

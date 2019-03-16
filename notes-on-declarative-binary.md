@@ -351,3 +351,125 @@ over again wherever that appears.
 
 Another note: having the length of one record be based on another
 record can be handled through something like `RecordTypes.if`.
+
+Later Notes
+===========
+
+Another oversight: any compound record may contain another compound
+record, and so they all need access to the same information. They all
+need access to the whole root record and the ability to navigate it.
+Ifs need to refer to values in the root record as it's being made, and
+this was okay because Series had those root records, and Ifs were used
+in Series. I put the burden on the Series `__call__` method to handle
+retrieval, though. So If records never got access to the root record
+themselves, but what if an If record contained a series record? How
+does that contained series record get access to the root dictionary?
+What if an If contains an If?
+
+One possibility is to give all the compound records the root record
+and have any other compound record be able to grab that root record
+from the containing compound record.
+
+A second possibility just occurred to me: the If records the primary
+fly in my soup right now. If I could take the record function an If
+returns and then process that as if it were part of the original
+series of records to process, then I may be fine. 
+
+
+### Possibility One
+
+> So, `If` records will have to calculate the record value themselves
+> from the dictionary handed down to them.
+
+Records may not have to know their own name... but with the changes
+introduced it won't kill anyone. I'm already handing each compound
+record more of a role in how they produce their values, rather than
+leaving the bulk of that knowledge specified in the Series.__call__
+method. This would remove the need for the "to_fill" dictionary, which
+reduces how much I need to pass into each record function. Cleans up
+the connections between them.
+
+At the same time, if I want looking through sibling records and 'prior
+records' to all happen with paths, then it's valuable to have the
+dictionary from a Series record already "installed" in the parent
+record, and have the Series record just modify that dictionary. (prior
+records are records that were already interpreted, which are any
+descendant record, and any sibling of a descendant record that exists
+at the time the record is being interpreted)
+
+> Series records return dicts. List records return lists. Those dicts
+> and lists may contain any value that any other record function could
+> produce, simple or compound. Other compound records can return
+> anything that any other record can return, simple or compound.
+
+> Using string paths forces you to be aware of different record types
+> and their interactions ahead of time. You have to create a notation
+> that will support each new thing you add. It may be better to
+> replace the path (a stand-in for a future value) with another lambda
+> (a stand-in for a future value!). This way the user can do whatever
+> they want as long as it works in python.
+
+~~~
+record = R.Series(
+    nums=R.List(3*[R.Integer(4)]),
+    record_type=R.If(
+        lambda root: root['nums'][0], # value to refer to
+        lambda value: R.Integer(4) if value == 0 else 
+            R.Integer(4, signed=True)),
+~~~
+
+Is it worth splitting this up into two functions? One to specify the
+value, and then one to act on the value and return a correct record
+function? Part of me says 'hell no', why use two functions when you
+can use one? The other part of me says "there's no other way to give
+this record a name conveniently. Python lambdas are single
+expressions. The only other way to give a name is to use a nested
+lambda. Something I'm pretty sure most python users aren't used to,
+and something that Scheme users replaced with the let form.
+
+> Keep two lambda arguments.
+
+Requiring an If to use a root record now makes them truly not make
+sense outside of Series, unless you pass in a root record yourself.
+
+> Make records aware of their names. Only really important for S
+
+For now, we can assume that the root record is a Series, but
+eventually they may be lists. Any compound record, really.
+
+Is a pipe a compound record? I think not... but it kinda depends on
+what records it contains. It's entirely dependent on which records it
+contains.
+
+### Possibility Two
+
+So the Series `__call__` would become more like
+
+```
+class Series:
+    def _process_record(self, record, root_dict, given_dict):
+        # ...
+        # the main logic of the loop body
+        if isinstance(record, R.Series):
+            # stuff
+        elif isinstance(record, R.If):
+            # stuff
+        else:
+            # stuff
+
+    def __call__(self, root_dict, given_dict):
+        # ...
+        for name, func in self.records.items():
+            result = _process_record(record, root_dict, given_dict)
+            while isARecord(result):
+                result = _process_record(result, root_dict, given_dict)
+        
+```
+
+Ifs just decide on a record function. They don't have to have the
+brains to process that record. I just currently have them processing
+the record.
+
+A downside of this is that this keeps the know-how of processing Ifs
+inside of the Series record call method. Any later compound records
+will likely fall suit.
