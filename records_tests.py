@@ -54,8 +54,8 @@ class IfTests(unittest.TestCase):
         # While it's possible to use an If record outside of a series,
         # it's not useful.
         record = R.If(None, lambda value: 
-                R.Ascii_integer(4) if value == 0 else
-                R.Fixed_length_string(4) if value == 1 else
+                R.AsciiInteger(4) if value == 0 else
+                R.FixedLengthString(4) if value == 1 else
                 R.Integer(4) if value == 2 else None)
 
         self.assertEqual((ascii_number_value, b''), record(number, 0))
@@ -83,9 +83,9 @@ class SeriesTests(unittest.TestCase):
         }
         source = b''.join(data)
         record = R.Series(
-                    num_1=R.Ascii_integer(5),
+                    num_1=R.AsciiInteger(5),
                     num_2=R.Integer(2),
-                    string=R.Fixed_length_string(7)
+                    string=R.FixedLengthString(7)
                 )
         interpretation = record(source)[0]
         self.assertEqual(expected_interpretation, interpretation)
@@ -102,11 +102,11 @@ class SeriesTests(unittest.TestCase):
                     'string' : 'foolish',
                 }
         record = R.Series(
-                    num=R.Ascii_integer(5),
+                    num=R.AsciiInteger(5),
                     plain_bytes=R.If('num', lambda value:
-                        R.Plain_bytes(2) if value == 1234 else
+                        R.PlainBytes(2) if value == 1234 else
                         R.Integer(2)),
-                    string=R.Fixed_length_string(7)
+                    string=R.FixedLengthString(7)
                 )
         interpretation = record(source)[0]
         self.assertEqual(expected_interpretation, interpretation)
@@ -125,12 +125,12 @@ class SeriesTests(unittest.TestCase):
                     }
                 }
         record = R.Series(
-                    num=R.Ascii_integer(5),
+                    num=R.AsciiInteger(5),
                     rest=R.Series(
                         plain_bytes=R.If('/num', lambda value:
-                            R.Plain_bytes(2) if value == 1234 else
+                            R.PlainBytes(2) if value == 1234 else
                             R.Integer(2)), 
-                        string=R.Fixed_length_string(7)),
+                        string=R.FixedLengthString(7)),
                     )
         interpretation = record(source)[0]
         self.assertEqual(expected_interpretation, interpretation)

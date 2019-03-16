@@ -24,22 +24,22 @@
 # Compositions of bytes return dicts or named tuples. haven't decided.
 # It's not super important, anyhow.
 
-def dictPath(dic, path):
+def dict_path(dic, path):
     """Navigate nested dictionaries using paths. dic['one']['two'] is
-    the same as dictPath(dic, 'one/two')."""
+    the same as dict_path(dic, 'one/two')."""
     if path in ['', '/']:
         return dic
 
-    curVal = dic
+    cur_val = dic
     elements = [x for x in path.split('/') if x != '']
     #print(dic)
     for element in elements:
-        if element in curVal:
-            curVal = curVal[element]
+        if element in cur_val:
+            cur_val = cur_val[element]
         else:
             raise KeyError(f"key '{element}' of path '{path}' is not in dictionary.")
 
-    return curVal
+    return cur_val
 
 class RecordTypes:
     class Integer:
@@ -54,7 +54,7 @@ class RecordTypes:
                     signed=self.signed)
             return number, source[self.length:]
 
-    class Fixed_length_string:
+    class FixedLengthString:
         """Binary record for ASCII strings of fixed length."""
         def __init__(self, length):
             self.length = length
@@ -63,7 +63,7 @@ class RecordTypes:
             return source[:self.length].decode('ascii'), source[self.length:]
 
     # decimal integer
-    class Ascii_integer:
+    class AsciiInteger:
         """Binary record for ASCII strings which describe numbers
         (just the characters 0-9), of fixed length."""
         def __init__(self, length):
@@ -72,7 +72,7 @@ class RecordTypes:
         def __call__(self, source):
             return int(source[:self.length].decode('ascii')), source[self.length:]
 
-    class Plain_bytes:
+    class PlainBytes:
         def __init__(self, length='unknown'):
             self.length = length
 
@@ -211,7 +211,7 @@ class RecordTypes:
         # NOTE: If I wanted to throw early errors where I KNOW
         # something is wrong just based on the order/type of records
         # given, here's the place to do it (eg having a record after
-        # Plain_bytes with an unknown length, there should be no bytes
+        # PlainBytes with an unknown length, there should be no bytes
         # to read after that).
         def __init__(self, **records):
             self.records = records
@@ -283,7 +283,7 @@ class RecordTypes:
                     #filled_records[name] = to_fill
 
                     if '/' in func.record_path:
-                        record_val = dictPath(parentDict, func.record_path)
+                        record_val = dict_path(parentDict, func.record_path)
                     else:
                         record_val = filled_records[func.record_path]
 
