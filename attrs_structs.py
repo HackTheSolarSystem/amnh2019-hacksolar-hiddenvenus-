@@ -32,13 +32,12 @@ def dictPath(dic, path):
 
     curVal = dic
     elements = [x for x in path.split('/') if x != '']
-    print(elements)
-    print(dic)
+    #print(dic)
     for element in elements:
         if element in curVal:
             curVal = curVal[element]
         else:
-            raise KeyError
+            raise KeyError(f"key '{element}' of path '{path}' is not in dictionary.")
 
     return curVal
 
@@ -179,9 +178,9 @@ class RecordTypes:
         Parameters
         ==========
 
-        referred_record : The name of a sibling record (another record
-            in the same Series record), or a path to the record,
-            relative to the outermost Series record).  
+        referred_record, str : The name of a sibling record (another
+            record in the same Series record), or a path to the
+            record, relative to the outermost Series record).  
         action : A function which accepts a single value and produces
             a record function, like RecordTypes.Integer, for instance.
             If given the value 2, then RecordTypes.Integer(2) produces
@@ -217,6 +216,7 @@ class RecordTypes:
         def __init__(self, **records):
             self.records = records
 
+        # TODO: Fix for next commit. Change name to root_dict.
         def __call__(self, source, parentDict=None, givenDict=None):
             R = RecordTypes
             remaining_source = source
@@ -225,8 +225,7 @@ class RecordTypes:
             filled_records = {} if givenDict is None else givenDict
             # This is more appropriate as the root dictionary, I
             # think. It's everything, not just the parent.
-            # TODO: Fix for next commit. Change name to root_dict.
-            parentDict = {} if parentDict is None else parentDict
+            #parentDict = {} if parentDict is None else parentDict
 
             # If I know I'm gonna head into a record which may include
             # an If record, then I wanna set up my dictionaries
@@ -271,8 +270,9 @@ class RecordTypes:
                 if isinstance(func, R.Series):
                     to_fill = {}
                     filled_records[name] = to_fill
+                    root = filled_records if parentDict is None else parentDict
                     value, remaining_source = func(
-                            remaining_source, parentDict, to_fill)
+                            remaining_source, root, to_fill)
                 # It's possible that the given record is a series, and
                 # that series should be able to refer to the parent
                 # series. This needs to be reworked... but I don't
