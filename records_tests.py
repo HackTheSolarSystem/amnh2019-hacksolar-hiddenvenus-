@@ -62,7 +62,78 @@ class IfTests(unittest.TestCase):
         self.assertEqual((ascii_string_value, b''), record(number, 1))
         self.assertEqual((unsigned_int_value, b''), record(number, 2))
 
+class SeriesTests(unittest.TestCase):
+    # Start with the complicated tests. Make the simple tests to
+    # diagnose errors in the complicated ones.
 
+
+    # one basic series tests with a series of fixed length records
+    def testBasicSeries(self):
+        data = [b'01234', 
+                (4090).to_bytes(2, 'little', signed=False),
+                b'foolish']
+        expected_interpretation = {
+            'num_1' : int(data[0]),
+            'num_2' : int.from_bytes(data[1], byteorder='little'),
+            # Note, there's a difference between b'foolish', the raw
+            # bytes that represent the string 'foolish', and
+            # 'foolish', the actual string itself (stored in a
+            # different way).
+            'string' : 'foolish',
+        }
+        source = b''.join(data)
+        record = R.Series(
+                    num_1=R.Ascii_integer(5),
+                    num_2=R.Integer(2),
+                    string=R.Fixed_length_string(7)
+                )
+        interpretation = record(source)[0]
+        self.assertEqual(expected_interpretation, interpretation)
+
+    # wanna test if records.
+    def testBasicIf(self):
+        data = [b'01234', 
+                (4090).to_bytes(2, 'little', signed=False),
+                b'foolish']
+        source = b''.join(data)
+        expected_interpretation = {
+                    'num' : int(data[0]),
+                    'plain_bytes' : data[1],
+                    'string' : 'foolish',
+                }
+        record = R.Series(
+                    num=R.Ascii_integer(5),
+                    plain_bytes=R.If('num', lambda value:
+                        R.Plain_bytes(2) if value == 1234 else
+                        R.Integer(2)),
+                    string=R.Fixed_length_string(7)
+                )
+        interpretation = record(source)[0]
+        self.assertEqual(expected_interpretation, interpretation)
+
+    # wanna test references to parents in if records
+    def testParentReferenceInSeries(self):
+        data = [b'01234', 
+                (4090).to_bytes(2, 'little', signed=False),
+                b'foolish']
+        source = b''.join(data)
+        expected_interpretation = {
+                    'num' : int(data[0]),
+                    'rest' : {
+                        'plain_bytes' : data[1],
+                        'string' : 'foolish',
+                    }
+                }
+        record = R.Series(
+                    num=R.Ascii_integer(5),
+                    rest=R.Series(
+                        plain_bytes=R.If('/num', lambda value:
+                            R.Plain_bytes(2) if value == 1234 else
+                            R.Integer(2)), 
+                        string=R.Fixed_length_string(7)),
+                    )
+        interpretation = record(source)[0]
+        self.assertEqual(expected_interpretation, interpretation)
 
 unittest.main()
 

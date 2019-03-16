@@ -25,11 +25,16 @@
 # It's not super important, anyhow.
 
 def dictPath(dic, path):
+    """Navigate nested dictionaries using paths. dic['one']['two'] is
+    the same as dictPath(dic, 'one/two')."""
     if path in ['', '/']:
         return dic
 
     curVal = dic
-    for element in [x for x in path.split('/') if x != '']:
+    elements = [x for x in path.split('/') if x != '']
+    print(elements)
+    print(dic)
+    for element in elements:
         if element in curVal:
             curVal = curVal[element]
         else:
@@ -38,8 +43,8 @@ def dictPath(dic, path):
     return curVal
 
 class RecordTypes:
-    # Integer is little endian.
     class Integer:
+        """Binary record for little endian integers of fixed length."""
         def __init__(self, length, signed=False):
             self.length = length
             self.signed = signed
@@ -51,6 +56,7 @@ class RecordTypes:
             return number, source[self.length:]
 
     class Fixed_length_string:
+        """Binary record for ASCII strings of fixed length."""
         def __init__(self, length):
             self.length = length
 
@@ -59,6 +65,8 @@ class RecordTypes:
 
     # decimal integer
     class Ascii_integer:
+        """Binary record for ASCII strings which describe numbers
+        (just the characters 0-9), of fixed length."""
         def __init__(self, length):
             self.length = length
 
@@ -73,7 +81,7 @@ class RecordTypes:
             if self.length == 'unknown':
                 return source, bytes()
             else:
-                source[:self.length], source[self.length:]
+                return source[:self.length], source[self.length:]
 
     @staticmethod
     def _bytes_from_bits(*args, order='little'):
@@ -135,6 +143,8 @@ class RecordTypes:
     # format is different, as is the bias on the exponent (-128,
     # instead of IEEE 754's -127).
     class Float:
+        """Binary record for floating point numbers in NASA's format,
+        which are not IEEE 754 floating point numbers."""
         def __init__(self, Type):
             if Type == 'single':
                 self.length = 4
@@ -155,20 +165,28 @@ class RecordTypes:
             value = sign * fraction * 2 ** exponent
             return value, source[self.length:]
 
-    # This is slightly different from the other functions, and only
-    # makes sense with a Series record. This allows one to use the
-    # value interpreted by a record to decide what record to use. This
-    # way, information in a binary file can influence how later parts
-    # of the file are interpreted.
-    # Outside of a series record, there is no other information to
-    # consider, thus this only makes sense when there are other
-    # records.
-    # referred_record : The name of a sibling record (another record
-    # in the same Series record), or a path to the record, relative to
-    # the outermost Series record).
-    # action : A function which accepts a single value and produces a
-    # record function, like RecordTypes.Integer(2), for instance.
+    # 
     class If:
+        """Slightly different from other records. Only makes sense
+        with a Series record. This allows one to use the value
+        interpreted by a record to decide what record to
+        use. This way, information in a previous part of a binary file
+        can influence how later parts of the file are interpreted.
+        Outside of a series record, there is no other information to
+        consider, thus this only makes sense when there are other
+        records.
+
+        Parameters
+        ==========
+
+        referred_record : The name of a sibling record (another record
+            in the same Series record), or a path to the record,
+            relative to the outermost Series record).  
+        action : A function which accepts a single value and produces
+            a record function, like RecordTypes.Integer, for instance.
+            If given the value 2, then RecordTypes.Integer(2) produces
+            a record function that reads a 2 byte long integer.
+        """
         def __init__(self, referred_record, action):
             self.record_path = referred_record
             self.action = action
@@ -181,6 +199,16 @@ class RecordTypes:
     # things. The names of keyword arguments are the names of the
     # records, and the arguments are record functions.
     class Series:
+        """Interprets a series of named records. A few names may be
+        reserved for special things in the future.
+
+        **records : A dictionary of the records to interpret. The key
+            is the name of the record and the value is a record
+            function. The result is a dictionary whose keys are the
+            record names and whose values are the interpreted records.
+            Any record type may be a value of a series record,
+            including another series record.
+        """
         # NOTE: If I wanted to throw early errors where I KNOW
         # something is wrong just based on the order/type of records
         # given, here's the place to do it (eg having a record after
@@ -190,8 +218,35 @@ class RecordTypes:
             self.records = records
 
         def __call__(self, source, parentDict=None, givenDict=None):
+            R = RecordTypes
             remaining_source = source
+            # This is the current dictionary to fill, handed down from
+            # a recursive call, or it is None.
             filled_records = {} if givenDict is None else givenDict
+            # This is more appropriate as the root dictionary, I
+            # think. It's everything, not just the parent.
+            # TODO: Fix for next commit. Change name to root_dict.
+            parentDict = {} if parentDict is None else parentDict
+
+            # If I know I'm gonna head into a record which may include
+            # an If record, then I wanna set up my dictionaries
+            # correctly. I want to put the filled_records dictionary
+            # into the root dictionary, and then I wanna make a new
+            # dictionary for a new series to fill (in the case of the
+            # series). This way an If record has access to all of the
+            # records which have been processed so far.
+            # However, I see the need to change this. These complex
+            # records need to be able to reach into previous records
+            # that were interpreted, past If records or Series
+            # records. They need to reach ancestors and their
+            # descendants, not just their parents, even in their
+            # parents aren't aware of previous ancestors (because an
+            # If doesn't get the root and given dictionaries, and
+            # there's no reason why an If can't contain a Series).
+            # Actually, the F-BIDR format would include Ifs that
+            # contain series. Logical records can contain various
+            # record series, and all the headers specify what they
+            # contain---that requires an If, too.
 
             # What needs special handling?
             # - reserved names for records, which should be handled
@@ -213,28 +268,42 @@ class RecordTypes:
             #     this is to just pass in the whole current dictionary
             # - If type records.
             for name, func in self.records.items():
-                if isinstance(func, RecordTypes.Series):
+                if isinstance(func, R.Series):
                     to_fill = {}
+                    filled_records[name] = to_fill
                     value, remaining_source = func(
-                            remaining_source, filled_records, to_fill)
+                            remaining_source, parentDict, to_fill)
+                # It's possible that the given record is a series, and
+                # that series should be able to refer to the parent
+                # series. This needs to be reworked... but I don't
+                # think I have to worry for the F-BIDR format.
                 elif isinstance(func, RecordTypes.If):
+                    # Can't handle series records yet.
+                    #to_fill = {}
+                    #filled_records[name] = to_fill
+
                     if '/' in func.record_path:
-                        record_val = filled_records[func.record_path]
+                        record_val = dictPath(parentDict, func.record_path)
                     else:
-                        record_val = dictPath(filled_records, func.record_path)
+                        record_val = filled_records[func.record_path]
+
                     value, remaining_source = func(remaining_source,
                             record_val)
+                    filled_records[name] = value
                 else:
                     value, remaining_source = func(remaining_source)
-                filled_records[name] = value
+                    filled_records[name] = value
 
-            return dict(filled_records), remaining_source
+            return filled_records, remaining_source
 
-    # Takes a list of functions, the first one of which must be a
-    # plain record function. A function that takes just a source. The
-    # remaining functions can just take the output from the previous
-    # function. 
+    
     class Pipe:
+        """A shortcut for creating new record functions from old, by
+        way of working with the output of an existing record function.
+        Takes a list of functions, the first one of which must be a
+        plain record function. A function that takes just a source.
+        The remaining functions can just take the output from the
+        previous function."""
         def __init__(self, *functions):
             if len(functions) == 0:
                 raise ValueError("At least 1 function must be provided to Pipe. " + 
@@ -262,6 +331,12 @@ class RecordTypes:
     # record that requires only a source. Thus If is not a basic
     # record.
     class List:
+        """A series of unnamed records. Pass in a list of record
+        functions. They will be interpreted one after the other.
+
+        Supports only basic record functions, ones whose length is
+        fixed.
+        """
         def __init__(self, record_list):
             self.record_list = record_list
 
@@ -274,18 +349,6 @@ class RecordTypes:
 
             return values, remaining_source
 
-# I've made a little error in reasoning. I figured that
-# compose_records would be recursive. Basically, the input was either
-# a series of simple records, or at least one of the records needed to
-# be composed, too, and compose_records would take care of making
-# those recursive calls. And this was under the assumtpion that the
-# user would make calls to compose_records while making record
-# functions. This can't be the case, unless I want the user to have to
-# manually construct the paths for things (paths for referring to
-# future values of records). So I'll have to make a way to signify
-# that something is a series of records, and then have compose records
-# act on that.
-
 # TODO:
 # - Improve on this to allow references to sibling records (I think
 #   this is done).
@@ -293,3 +356,6 @@ class RecordTypes:
 #   a record of fixed length which requires no information aside from
 #   the binary source to read stuff from? Does it have to know its
 #   length?
+#       - This is good enough for now. Later and better meanings will
+#         come from working with this and running face-first into
+#         errors, not from a bunch of armchair planning.
