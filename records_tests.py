@@ -2,6 +2,11 @@ import unittest
 from attrs_structs import RecordTypes as R
 import random
 
+# Just make sure we're always operating in little endian without
+# re-writing it all the time.
+def int_to_bytes(number, length, signed=False):
+    return number.to_bytes(length, 'little', signed=signed)
+
 class IntegersTests(unittest.TestCase):
     def testReadUnsigned(self):
         int_record = R.Integer(1)
@@ -33,13 +38,13 @@ class IntegersTests(unittest.TestCase):
         random_numbers = [random.randrange(0, 256**4)  for x in range(10)]
         int_record = R.Integer(4)
         for number in random_numbers:
-            the_bytes = number.to_bytes(4, 'little', signed=False)
+            the_bytes = int_to_bytes(number, 4, signed=False)
             self.assertEqual(int_record(the_bytes), (number, b''))
 
         int_record = R.Integer(5, signed=True)
         random_numbers = [random.randrange(-256**4, 256**4)  for x in range(10)]
         for number in random_numbers:
-            the_bytes = number.to_bytes(5, 'little', signed=True)
+            the_bytes = int_to_bytes(number, 5, signed=True)
             self.assertEqual(int_record(the_bytes), (number, b''))
 
 class IfTests(unittest.TestCase):
@@ -70,7 +75,7 @@ class SeriesTests(unittest.TestCase):
     # one basic series tests with a series of fixed length records
     def testBasicSeries(self):
         data = [b'01234', 
-                (4090).to_bytes(2, 'little', signed=False),
+                int_to_bytes(4090, 2),
                 b'foolish']
         expected_interpretation = {
             'num_1' : int(data[0]),
@@ -93,7 +98,7 @@ class SeriesTests(unittest.TestCase):
     # wanna test if records.
     def testBasicIf(self):
         data = [b'01234', 
-                (4090).to_bytes(2, 'little', signed=False),
+                int_to_bytes(4090, 2),
                 b'foolish']
         source = b''.join(data)
         expected_interpretation = {
@@ -114,7 +119,7 @@ class SeriesTests(unittest.TestCase):
     # wanna test references to parents in if records
     def testParentReferenceInSeries(self):
         data = [b'01234', 
-                (4090).to_bytes(2, 'little', signed=False),
+                int_to_bytes(4090, 2),
                 b'foolish']
         source = b''.join(data)
         expected_interpretation = {
