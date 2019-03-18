@@ -1,3 +1,8 @@
+class Record:
+    def __init__(self, root=None, current=None):
+        self.root = dict() if root is None else root
+        self.current = current
+
 class RecordTypes:
     class Integer:
         """Binary record for little endian integers of fixed length."""
@@ -52,7 +57,8 @@ class RecordTypes:
                 return source, bytes()
             else:
                 length = (self.length if isinstance(self.length, int) else
-                            self.length(root_record))
+                            self.length(root_record.root,
+                                root_record.current))
                 return bytes(source[:length]), source[length:]
 
     @staticmethod
@@ -191,29 +197,32 @@ class RecordTypes:
 
         # NOTE: The use of givenDict is to allow the root_record to
         # have a record's siblings as well as descendants. 
-        def __call__(self, source, root_record=None, givenDict=None):
+        def __call__(self, source, root_record=None):
             R = RecordTypes
             remaining_source = source
-            # This is the current dictionary to fill, handed down from
-            # a recursive call, or it is None.
-            filled_records = {} if givenDict is None else givenDict
-            root = filled_records if root_record is None else root_record
+            if root_record is None:
+                filled_records = {}
+                root = Record(filled_records, filled_records) 
+            else:
+                root = root_record
 
             for name, func in self.records.items():
                 if isinstance(func, R.Series):
-                    to_fill = {}
-                    filled_records[name] = to_fill
+                    to_fill = {'..' : root.current}
+                    root.current[name] = to_fill
+                    root.current = to_fill
                     value, remaining_source = func(
-                            remaining_source, root, to_fill)
+                            remaining_source, root)
+                    root.current = root.current['..']
                 # It's possible that the given record is a series, and
                 # that series should be able to refer to the parent
                 # series. This needs to be reworked... but I don't
                 # think I have to worry for the F-BIDR format.
                 else:
                     value, remaining_source = func(remaining_source, root)
-                    filled_records[name] = value
+                    root.current[name] = value
 
-            return filled_records, remaining_source
+            return root.current, remaining_source
 
     # For a series of records that are named as one group rather than
     # indidivually. For example, the radiometer data annotation labels

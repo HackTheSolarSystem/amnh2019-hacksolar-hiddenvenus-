@@ -38,7 +38,7 @@ def file_15(source, root_record=None):
             the_rest=rest_bytes)
 
     def data_block(source, root_record):
-        info = root_record['secondary_header']['annotation_block']['annotation_label']
+        info = root_record.root['secondary_header']['annotation_block']['annotation_label']
         num_lines = info['line_count']
         line_length = info['line_length']
         single_line = R.PlainBytes(line_length)
@@ -50,8 +50,8 @@ def file_15(source, root_record=None):
         # looking matters, because it determines interpretation of the
         # offset and pointer.
         def clean_line(source, root_record=None):
-            offset_to_first = root_record['offset_to_first']
-            pointer_to_last = root_record['pointer_to_last']
+            offset_to_first = root_record.root['offset_to_first']
+            pointer_to_last = root_record.root['pointer_to_last']
             return list(source[offset_to_first:pointer_to_last]), bytes()
 
         line = R.Series(
@@ -79,8 +79,7 @@ def file_15(source, root_record=None):
                     line_count=R.Integer(2),
                     line_length=R.Integer(2),
                     the_rest=R._FigureOutLater(
-                    lambda r: (r['secondary_header']['annotation_block']
-                                ['remaining_length']) - 4),
+                    lambda r, c: c['..']['remaining_length'] - 4),
                 ),
             ),
         ),
@@ -114,7 +113,7 @@ def file_15(source, root_record=None):
 
 
     #first_record = basic_logical_record(
-    return lrec(source, None, None)
+    return lrec(source)
 
 with open("FILE_15", 'rb') as f:
     contents = f.read()
