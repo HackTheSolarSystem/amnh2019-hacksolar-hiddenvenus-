@@ -1,7 +1,5 @@
 from attrs_structs import RecordTypes as R
 
-figure_out_later = R.PlainBytes
-
 # record representing a physical record. Physical records are always
 # 32500 bytes long. If the information they contain was less than
 # this, then the info is padded with the '^' character. All files
@@ -118,11 +116,11 @@ def file_15(source, root_record=None):
     #first_record = basic_logical_record(
     return lrec(source, None, None)
 
-with open("/home/adam/projects/amnh2019-hacksolar-hiddenvenus/data/MG_4001/F0376_3/FILE_15", 'rb') as f:
+with open("FILE_15", 'rb') as f:
     contents = f.read()
     records = []
-    rest = contents
-    for i in range(20):
+    rest = memoryview(contents)
+    for i in range(5000):
         value, rest = file_15(rest)
         records.append(value)
 

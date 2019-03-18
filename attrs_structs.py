@@ -17,7 +17,9 @@ class RecordTypes:
             self.length = length
 
         def __call__(self, source, root_record=None):
-            return source[:self.length].decode('ascii'), source[self.length:]
+            #return source[:self.length].decode('ascii'), source[self.length:]
+            return (bytes(source[:self.length]).decode('ascii'),
+                    source[self.length:])
 
     class AsciiInteger:
         """Binary record for ASCII strings which describe decimal
@@ -26,7 +28,8 @@ class RecordTypes:
             self.length = length
 
         def __call__(self, source, root_record=None):
-            return int(source[:self.length].decode('ascii')), source[self.length:]
+            return (int(bytes(source[:self.length]).decode('ascii')),
+                    source[self.length:])
 
     class PlainBytes:
         def __init__(self, length='unknown'):
@@ -36,7 +39,7 @@ class RecordTypes:
             if self.length == 'unknown':
                 return source, bytes()
             else:
-                return source[:self.length], source[self.length:]
+                return bytes(source[:self.length]), source[self.length:]
 
     class _FigureOutLater:
         """length may be 'unknown', or int, or callable, where the
@@ -50,7 +53,7 @@ class RecordTypes:
             else:
                 length = (self.length if isinstance(self.length, int) else
                             self.length(root_record))
-                return source[:length], source[length:]
+                return bytes(source[:length]), source[length:]
 
     @staticmethod
     def _bytes_from_bits(*args, order='little'):
