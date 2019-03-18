@@ -352,8 +352,8 @@ over again wherever that appears.
 Another note: having the length of one record be based on another
 record can be handled through something like `RecordTypes.if`.
 
-Later Notes
-===========
+Later Notes (3/15/18)
+=====================
 
 Another oversight: any compound record may contain another compound
 record, and so they all need access to the same information. They all
@@ -375,6 +375,13 @@ fly in my soup right now. If I could take the record function an If
 returns and then process that as if it were part of the original
 series of records to process, then I may be fine. 
 
+A third possibility would dramatically speed up development time: give
+all records the root record. All record functions take a source and
+optional root record, if they want to use it. All other arguments come
+afterward and are part of that record's specifically call signature.
+This way, I can write in functions for records I haven't fully worked
+out yet in my scheme, and I can work them out later. Works before
+perfect is something I can live with. Shit, celebrate even.
 
 ### Possibility One
 
@@ -473,3 +480,60 @@ the record.
 A downside of this is that this keeps the know-how of processing Ifs
 inside of the Series record call method. Any later compound records
 will likely fall suit.
+
+### Possibility Three
+
+With this, some of the If series functions could be done quickly as
+hand functions. SOmething like:
+
+~~~
+def thisRecord(source, root_record):
+    interesting_piece = root_record['logical_record']['2ndry_header']['type']
+    if interesting_piece == 'orbit data':
+        # use this particular record function.
+    else:
+        # use another record function.
+
+F_BIDR = R.Series(
+    # ...
+    thing=thisRecord
+    # ...
+    )
+~~~
+
+It looks nothing at all like everything else, but the functions should
+be a minority. Glue that connects things at "joints" where decisions
+are made. With this, I no longer have to pull in all records to this
+record function that would require the conditional... wait, I would.
+Right now, record functions return a single value. I'd still have that
+dictionary nesting problem. But at least the nesting problem is
+possible now. It actually wasn't before.
+
+This idea has become a cage. I liked it when it was a few flexible
+pieces. Maybe I should drop work on it entirely, and just use the
+useful pieces.
+
+The series idea is still good. 
+
+- Functions can return a single value, or a pair of key-value pairs to
+  fill in more parts of a series. Or a callable as another record (not
+  sure about keeping this, not necessary while there's other stuff
+  around).
+- Series now take a list of key-value pairs, instead of keyword
+  arguments. keywords limit the useable names to python identifiers,
+  and they allow for record functions to specify the names of the
+  values that they return.
+
+Later Notes (3/18/18)
+=====================
+
+I must leave copying/slicing the source as a model. It would be okay
+for smaller files, but I'm coming face-to-face with how stonkingly
+huge the largest image file is. I can stick with slices for now...
+
+It's actually not that slow to read a logical record with the current
+method. But it does take time, and there are so very many logical
+records in the largest image data file.
+
+It's not just composition of Ifs and Series and present problems with
+passing context. It's any user defined functions, too.
