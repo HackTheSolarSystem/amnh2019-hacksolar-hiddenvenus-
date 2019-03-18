@@ -1,75 +1,155 @@
 from attrs_structs import RecordTypes as R
 
-data_annotation_labels = {
-    'image' : R.Series(
-        image_line_count=R.Integer(2),
-        image_line_length=R.Integer(2),
-        projection_origin_latitude=R.Float('single'),
-        projection_origin_longitude=R.Float('single'),
-        reference_point_longitude=R.Float('single'),
-        reference_point_latitude=R.Float('single'),
-        reference_point_offset_lines=R.Integer(4, signed=True),
-        reference_point_offset_pixels=R.Integer(4, signed=True),
-        burst_counter=R.Integer(4, signed=True),
-        nav_unique_id=R.Fixed_length_string(32)),
-    # Not quite true. There's a meaning to these, but it works on a
-    # bit level, not a byte level. I think I'm going to introduce
-    # piping here. However the total length is actually 7 bytes.
-    'processing' : R.Plain_bytes(7),
-    # Actually longer. 112 bytes. This only covers 88 bytes. Remaining
-    # bytes are unused.
-    'radiometer' : R.Series(
-        scet=R.Float('double'),
-        latitutde=R.Float('single'),
-        longitude=R.Float('single'),
-        incidence_angle=R.Float('single'),
-        terrain_elevation=R.Float('single'),
-        spacecraft_x_coord=R.Float('single'),
-        spacecraft_y_coord=R.Float('single'),
-        spacecraft_z_coord=R.Float('single'),
-        receiver_gain=R.Float('single'),
-        receiver_temp=R.Float('single'),
-        # Coefficients of a polynomial, with temp_coefficients[0]
-        # being coef of x^2, and temp_coefficients[2] being the constant.
-        temp_coefficients=R.List(3*[R.Float('single')]),
-        sensor_input_noise_temp=R.Float('single'),
-        cable_segment_temps=R.List(5*[R.Float('single')]),
-        cable_segment_losses=R.List(5*[R.Float('single')]),
-        atmostphereic_emission_temp=R.Float('single'),
-        atmostphereic_attentuation_factor=R.Float('single'),
-        cold_sky_reference_temp=R.Float('single')),
-}
+figure_out_later = R.PlainBytes
 
-data_blocks = {
-    # Format covered in appendix D. 512 bytes long.
-    'per_orbit' : R.Series(
-        orbit_number=R.Float('single'),
-        mapping_start_time=R.Float('double'),
-        mapping_stop_time=R.Float('double'),
-        total_bursts_on_orbit=R.Integer(4),
-        product_id=R.Fixed_length_string(9),
-        volume_id=R.Fixed_length_string(6),
-        wall_clock_time_of_start=R.Fixed_length_string(19),
-        number_of_looks_used=R.Integer(4),
-        left_or_right_looking=R.Integer(4),
-        nav_unique_id=R.Fixed_length_string(32),
-        # This is not quite true. This is a special format of time.
-        periapsis_time=R.Fixed_length_string(15),
+# record representing a physical record. Physical records are always
+# 32500 bytes long. If the information they contain was less than
+# this, then the info is padded with the '^' character. All files
+# should be integer multiples of 32500 bytes in size. This is true for
+# orbit 376's (F_0376) files at least, as I checked.
+def physical_record(source, root_record=None):
+    value, rest = R.PlainBytes(32500)(source, root_record)
+    return value.rstrip(b'^'), rest
 
+def physical_records(source, root_record=None):
+    rest = source
+    records = []
+    while len(rest) > 0:
+        value, rest = physical_record(rest, root_record)
+        records.append(value)
 
-}
-annotation_block = R.Series(
-        data_class=R.Integer(1),
-        data_annotation_label_length=R.Integer(8)
+    return records, rest
+
+def file_12(source, root_record):
+    pass
+
+def file_13(source, root_record):
+    pass
+
+# absolute pathing is a bitch. Perhaps some relative pathing would be
+# really helpful. I could give both the root record and the sibling
+# record and include a parent reference as '..'.
+def file_15(source, root_record=None):
+    def rest_bytes(source, root_record):
+        return R.PlainBytes(
+                root_record['remaining_length'])(source, root_record)
+
+    basic_logical_record = R.Series(
+            record_type=R.PlainBytes(12),
+            remaining_length=R.AsciiInteger(8),
+            the_rest=rest_bytes)
+
+    def data_block(source, root_record):
+        info = root_record['secondary_header']['annotation_block']['annotation_label']
+        num_lines = info['line_count']
+        line_length = info['line_length']
+        single_line = R.PlainBytes(line_length)
+        length = num_lines * line_length
+        #data, rest = R.PlainBytes(length)(source)
+        data, rest = R.List(num_lines*[single_line])(source)
+
+        # page 51 of F-BIDR document has more information. left/right
+        # looking matters, because it determines interpretation of the
+        # offset and pointer.
+        def clean_line(source, root_record=None):
+            offset_to_first = root_record['offset_to_first']
+            pointer_to_last = root_record['pointer_to_last']
+            return list(source[offset_to_first:pointer_to_last]), bytes()
+
+        line = R.Series(
+            offset_to_first = R.Integer(2),
+            pointer_to_last = R.Integer(2),
+            line=clean_line
         )
 
-orbit_number = R.Integer(2)
-secondary_header = R.Series(
-        BIDR_secondary_label_type=R.Integer(2),
-        BIDR_secondary_label_length=R.Integer(2),
-        orbit_number=orbit_number,
-        )
-logcal_record = R.Series(
-        NJPL_primary_label_type=R.Fixed_length_string(12),
-        NJPL_primary_label_length=R.Ascii_integer(8),
-        )
+        lines = [line(data[i])[0] for i in range(num_lines)]
+        #lines = [line(data[i : i + line_length])[0]
+                #for i in range(num_lines)]
+        return lines, rest
+
+    lrec = R.Series(
+        primary_type=R.FixedLengthString(12),
+        remaining_length=R.AsciiInteger(8),
+        secondary_header=R.Series(
+            secondary_type=R.Integer(2),
+            remaining_length=R.Integer(2),
+            orbit_number=R.Integer(2),
+            annotation_block=R.Series(
+                data_class=R.Integer(1),
+                remaining_length=R.Integer(1),
+                annotation_label=R.Series(
+                    line_count=R.Integer(2),
+                    line_length=R.Integer(2),
+                    the_rest=R._FigureOutLater(
+                    lambda r: (r['secondary_header']['annotation_block']
+                                ['remaining_length']) - 4),
+                ),
+            ),
+        ),
+        data_block=data_block,
+    )
+
+
+    # There's more than 32 million logical records in file_15.
+    def count_logical_recs(source):
+        start = 0
+        records = 0
+        while start < len(source):
+            label_offset = start = 12
+            length_bytes = source[label_offset:label_offset+8]
+            length = R.AsciiInteger(8)(length_bytes)[0]
+            print(f'record {records}')
+            start = start + length
+            records += 1
+
+    # There's more than 32 million logical records in file_15.
+    def slow_count_logical_recs(source):
+        records = 0
+        remaining_source = source
+        while len(remaining_source) > 0:
+            _, remaining_source = basic_logical_record(remaining_source)
+            print(f'record {records}')
+            records += 1
+
+
+
+
+
+    #first_record = basic_logical_record(
+    return lrec(source, None, None)
+
+with open("/home/adam/projects/amnh2019-hacksolar-hiddenvenus/data/MG_4001/F0376_3/FILE_15", 'rb') as f:
+    contents = f.read()
+    records = []
+    rest = contents
+    for i in range(20):
+        value, rest = file_15(rest)
+        records.append(value)
+
+#file_16 = R.Series(
+
+# NOTE: File 15 has more than one logical record. It's a series of
+# logical records.
+
+# TODO:
+# - Where to find the orientation of an image?
+#   - found it in per-orbit parameters. See if you can find another
+#     source that's in FILE_15 instead of reaching for another file.
+# - Some records had an offset and pointer that had to have been
+#   wrong. Like, their values were just too large. What happened?
+#       - I saw that the first two 16-bit values in each line are def
+#         16 bit unsigned integers. I saw also that I have to
+#         interpret these values a little differently for left/right
+#         facing images. None of this accounts for the pointer and
+#         offset being larger than the line length. Nor does it
+#         account for the line length being larger than it apparently
+#         should be
+# - Do we interpret offset and pointer for left and right pointing
+#   images diffrently?
+#       - Yup. There's an example on page 51. 
+#           - Left looking images: For a left looking image, the
+#             offset is offset from the first pixel to the first valid
+#             pixel. The pointer is the offset from the first pixel to
+#             the last valid pixel (exclusive end).
+#           - Right looking images: The same as left looking image but
+#             with 4 added to both offset and pointer.
