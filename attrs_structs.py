@@ -1,7 +1,55 @@
-class Record:
-    def __init__(self, root=None, current=None):
-        self.root = dict() if root is None else root
-        self.current = current
+class Node():
+    def __init__(self, value, parent=None):
+        self.value = value
+        self.parent = parent
+
+    def add(self, value, name=None):
+        if isinstance(self.value, list):
+            self.value.append(value)
+        elif isinstance(self.value, dict) and name is not None:
+            self.value[name] = value
+        else:
+            # Assumes that no errors can happen with value type.
+            raise KeyError("Need a name to add to dictionary.")
+
+        if isinstance(value, Node):
+            value.parent = self
+
+    def __getitem__(self, *args):
+        if isinstance(self.value, (dict, list)):
+            return self.value.__getitem__(*args)
+        else:
+            raise ValueError("value is not a valid container.")
+
+    @property
+    def p(self):
+        return self.parent
+
+    def is_leaf(self):
+        return isinstance(self.value, (dict, list))
+
+# First, traverse the meta-record and get a list of all the leaf
+# records. That's all records which are not Series/List. Ifs count as
+# leaf records for now, but they will be updated later.
+
+# One trouble of mine: if this scheme works with If, it should work
+# with all records.
+
+# Make an empty record in the same shape as the meta record with a
+# list of "nodes": places to add values in when they've been processed
+# from the input file.
+#
+# Then, pair up the leaf nodes and leaf records. This will be the
+# processing order of the file. The order of the records to be
+# processed and where to put the interpreted value.
+#
+# If encounter an if record, resolve it for it's record, and then put
+# it ahead of everything else in the list of stuff to process. And we
+# hit a problem. We have to make a general scheme. Because processing
+# the if may return a non-leaf node. And whatever logic would've
+# worked for the general case of "process all the nodes as they come
+# without depending on some original shape" is exactly the logic I'd
+# have to write for this situation of processing an If record.
 
 class RecordTypes:
     class Integer:
@@ -10,7 +58,7 @@ class RecordTypes:
             self.length = length
             self.signed = signed
 
-        def __call__(self, source, root_record=None):
+        def __call__(self, source, **kwargs):
             number = int.from_bytes(
                     source[:self.length], byteorder='little',
                     signed=self.signed)
@@ -21,8 +69,7 @@ class RecordTypes:
         def __init__(self, length):
             self.length = length
 
-        def __call__(self, source, root_record=None):
-            #return source[:self.length].decode('ascii'), source[self.length:]
+        def __call__(self, source, **kwargs):
             return (bytes(source[:self.length]).decode('ascii'),
                     source[self.length:])
 
@@ -32,7 +79,7 @@ class RecordTypes:
         def __init__(self, length):
             self.length = length
 
-        def __call__(self, source, root_record=None):
+        def __call__(self, source, **kwargs):
             return (int(bytes(source[:self.length]).decode('ascii')),
                     source[self.length:])
 
@@ -40,7 +87,7 @@ class RecordTypes:
         def __init__(self, length='unknown'):
             self.length = length
 
-        def __call__(self, source, root_record=None):
+        def __call__(self, source, **kwargs):
             if self.length == 'unknown':
                 return source, bytes()
             else:
@@ -52,7 +99,7 @@ class RecordTypes:
         def __init__(self, length='unknown'):
             self.length = length
 
-        def __call__(self, source, root_record=None):
+        def __call__(self, source, **kwargs):
             if self.length == 'unknown':
                 return source, bytes()
             else:
@@ -131,7 +178,7 @@ class RecordTypes:
             else:
                 raise ValueError
 
-        def __call__(self, source, root_record=None):
+        def __call__(self, source, **kwargs):
             bits = RecordTypes._bytes_to_bits(source[:self.length])
             exponent = RecordTypes._bytes_from_bits(*bits[7:15])
             if exponent == 0:
@@ -159,18 +206,19 @@ class RecordTypes:
         referred_record, callable : A function which takes in the root
             record and returns an existing value in the root record.
         action, callable : A function which accepts a single value and
-            produces a record function, like RecordTypes.Integer, for
-            instance.  If given the value 2, then
-            RecordTypes.Integer(2) produces a record function that
-            reads a 2 byte long integer.
+            produces a record function, like RecordTypes.Integer(2), for
+            instance.
         """
         def __init__(self, referred_record, action):
             self.referred_record = referred_record
             self.action = action
 
-        def __call__(self, source, root_record):
-            value = self.referred_record(root_record)
-            return self.action(record_value)(source)
+        def __call__(self, root_record, current):
+            # TODO: This is a problem, because arrays can return
+            # slices. Just doing .value is not enough. Either that or
+            # warn a user that this falls apart with array slices.
+            value = self.referred_record(root_record, current).value
+            return self.action(value)
 
     # For a series of contiguous records.
     # Each record has a name. A few names may be reserved for special
@@ -198,31 +246,7 @@ class RecordTypes:
         # NOTE: The use of givenDict is to allow the root_record to
         # have a record's siblings as well as descendants. 
         def __call__(self, source, root_record=None):
-            R = RecordTypes
-            remaining_source = source
-            if root_record is None:
-                filled_records = {}
-                root = Record(filled_records, filled_records) 
-            else:
-                root = root_record
-
-            for name, func in self.records.items():
-                if isinstance(func, R.Series):
-                    to_fill = {'..' : root.current}
-                    root.current[name] = to_fill
-                    root.current = to_fill
-                    value, remaining_source = func(
-                            remaining_source, root)
-                    root.current = root.current['..']
-                # It's possible that the given record is a series, and
-                # that series should be able to refer to the parent
-                # series. This needs to be reworked... but I don't
-                # think I have to worry for the F-BIDR format.
-                else:
-                    value, remaining_source = func(remaining_source, root)
-                    root.current[name] = value
-
-            return root.current, remaining_source
+            process_meta_record(source, self)
 
     # For a series of records that are named as one group rather than
     # indidivually. For example, the radiometer data annotation labels
@@ -245,14 +269,65 @@ class RecordTypes:
         def __init__(self, record_list):
             self.record_list = record_list
 
-        def __call__(self, source, root_record=None):
-            remaining_source = source
-            values = []
-            for record in self.record_list:
-                value, remaining_source = record(remaining_source, root_record)
-                values.append(value)
+        def __call__(self, source):
+            process_meta_record(self)
 
-            return values, remaining_source
+def tree_to_values(tree):
+    inside = tree.value
+    if isinstance(inside, dict):
+        for k, v in inside.items():
+            inside[k] = tree_to_values(v)
+    elif isinstance(inside, list):
+        for i in range(len(inside)):
+            inside[i] = tree_to_values(inside[i])
+    #else:
+        #return tree.value
+
+    return inside
+
+# source is a memoryview of a bytes object.
+def process_meta_record(source, meta_record):
+    # node_stack here will contain an old tree node and it's
+    # corresponding new tree node. And the node's name if it has one.
+    if isinstance(meta_record, RecordTypes.Series):
+        root = Node(dict())
+    else:
+        root = Node(list())
+    remaining_source = source
+
+    node_stack = [[meta_record, root, None]]
+
+    while len(node_stack) != 0:
+        old, new, name = node_stack.pop()
+        if isinstance(old, RecordTypes.Series):
+            old_children = old.records.items()
+            new.value = dict()
+            length = len(node_stack)
+            for k, v in old_children:
+                new_node = Node(None, parent=new)
+                node_stack.insert(length, [v, new_node, k])
+                new.add(new_node, name=k)
+        elif isinstance(old, RecordTypes.List):
+            new.value = list()
+            length = len(node_stack)
+            for child in old.record_list:
+                new_node = Node(None, parent=new)
+                node_stack.insert(length, [v, new_node, None])
+                new.add(child, name=k)
+        elif isinstance(old, RecordTypes.If):
+            resolved_record = old(root, new)
+            node_stack.append([resolved_record, new, name])
+        else:
+            # Only "leaf records" are actual non-meta record functions
+            # that consume source.
+            #print(f'name: {name}, old: {old}')
+            value, remaining_source = old(
+                    remaining_source, root_record=root, current=new)
+            #print(f'value info: ({value}, {bytes(remaining_source)})')
+            new.value = value
+
+    #return tree_to_values(root), remaining_source
+    return root, remaining_source
 
 # TODO:
 # - Improve on this to allow references to sibling records (I think

@@ -535,5 +535,59 @@ It's actually not that slow to read a logical record with the current
 method. But it does take time, and there are so very many logical
 records in the largest image data file.
 
+I was able to get away with switching from working with bytes objects
+to memoryviews of bytes objects. That gave me a lot of speed, but
+still barely enough to work with files the size of FILE_15.
+
 It's not just composition of Ifs and Series and present problems with
 passing context. It's any user defined functions, too.
+
+The things I've chosen to do at this point are:
+
+- Restrict context to just the root record being passed everywhere.
+- Give the root record the ability to keep track of the current record
+  being processed, and the root record that kicked it all off.
+- Keep If, Series, and List.
+- Make Series and List "equal", in that they can both start off a
+  record, because I've used that at least once, and because I think I
+  can make it work pretty well.
+
+Things I chose not to do:
+
+- Have Series take key/value pairs instead of keyword arguments.
+- Allow record functions to return a series of name/value pairs. The
+  record functions are still returning one value, and the unprocessed
+  data they haven't used.
+
+
+Places where I'm having trouble:
+
+- Reworking If. An If has no clue what record it will return, so it
+  has no type for the parent record to be aware of, and so my
+  type-specific approach for handling the processing of records falls
+  apart at the If. I've got contradicting assumptions in this work,
+  and they keep biting me.
+    - The type of the parent and the type of the record being
+      processed matter. The parent type dictates how the record being
+      processed gets added to the parent. The child type dictates what
+      data structure (DictRecord or ListRecord) gets used to store the
+      created values. And I have this constraint because I want all
+      members of root record to be available for reference as soon as
+      they're known (it's possible for a list or series to store the
+      interpreted values on the side until all records are
+      interpreted, then add them to the root record all at once. This
+      prevents sibling records from inspecting each other in the root
+      record).
+- Keeping the logic for processing records in one place.
+
+Add `add` operation that takes care of the type details in adding
+values to the root record could help. It can account for the type of
+the current record, and the type of the record that was just
+processed.
+
+These constraints with trying to keep all the elements of the root
+record accessible could leak into user-defined records, I thought.
+On 2nd thought though, it's true but unimportant. Most users will
+probably process some records and inspect their values
+programmatically, not with If. I built what I built to capture common
+patterns.
