@@ -28,29 +28,6 @@ class Node():
     def is_leaf(self):
         return isinstance(self.value, (dict, list))
 
-# First, traverse the meta-record and get a list of all the leaf
-# records. That's all records which are not Series/List. Ifs count as
-# leaf records for now, but they will be updated later.
-
-# One trouble of mine: if this scheme works with If, it should work
-# with all records.
-
-# Make an empty record in the same shape as the meta record with a
-# list of "nodes": places to add values in when they've been processed
-# from the input file.
-#
-# Then, pair up the leaf nodes and leaf records. This will be the
-# processing order of the file. The order of the records to be
-# processed and where to put the interpreted value.
-#
-# If encounter an if record, resolve it for it's record, and then put
-# it ahead of everything else in the list of stuff to process. And we
-# hit a problem. We have to make a general scheme. Because processing
-# the if may return a non-leaf node. And whatever logic would've
-# worked for the general case of "process all the nodes as they come
-# without depending on some original shape" is exactly the logic I'd
-# have to write for this situation of processing an If record.
-
 class RecordTypes:
     class Integer:
         """Binary record for little endian integers of fixed length."""
@@ -167,6 +144,8 @@ class RecordTypes:
     # NOTE: These are not IEEE 754 floating point numbers. Their
     # format is different, as is the bias on the exponent (-128,
     # instead of IEEE 754's -127).
+    # TODO: See if you can just write the mantissa bits to memory in
+    # correct arrangement, rather than perform arithmetic.
     class Float:
         """Binary record for floating point numbers in NASA's format,
         which are not IEEE 754 floating point numbers."""
@@ -191,23 +170,24 @@ class RecordTypes:
             return value, source[self.length:]
 
     class If:
-        """Slightly different from other records. Only makes sense
-        with a Series record. This allows one to use the value
-        interpreted by a record to decide what record to
-        use. This way, information in a previous part of a binary file
-        can influence how later parts of the file are interpreted.
-        Outside of a series record, there is no other information to
-        consider, thus this only makes sense when there are other
-        records.
+        """A meta-record. Not a record function on its own, but gives
+        some information about record functions used within. This
+        allows one to use the value of a previously interpreted record
+        to decide what record function to use. This way, information
+        in a previous part of a binary file can influence how later
+        parts of the file are interpreted.  Outside of a series/list
+        records, there is no other information to consider, thus this
+        only makes sense when there are other records.
 
         Parameters
         ==========
 
-        referred_record, callable : A function which takes in the root
-            record and returns an existing value in the root record.
+        referred_record, callable : A function which takes in both the
+            root record and the current record (if you'd prefer to
+            work relative to current record) and returns an existing
+            value in the root record.
         action, callable : A function which accepts a single value and
-            produces a record function, like RecordTypes.Integer(2), for
-            instance.
+            produces a record function, like RecordTypes.Integer(2).
         """
         def __init__(self, referred_record, action):
             self.referred_record = referred_record
@@ -220,20 +200,15 @@ class RecordTypes:
             value = self.referred_record(root_record, current).value
             return self.action(value)
 
-    # For a series of contiguous records.
-    # Each record has a name. A few names may be reserved for special
-    # things. The names of keyword arguments are the names of the
-    # records, and the arguments are record functions.
     class Series:
-        """Interprets a series of named records. A few names may be
-        reserved for special things in the future.
+        """A meta-record. Interprets a series of named records. A few
+        names may be reserved for special things in the future.
 
         **records : A dictionary of the records to interpret. The key
-            is the name of the record and the value is a record
-            function. The result is a dictionary whose keys are the
-            record names and whose values are the interpreted records.
-            Any record type may be a value of a series record,
-            including another series record.
+            is the name of the record and the value is any record
+            function or meta-record. The result is a dictionary whose
+            keys are the record names and whose values are the
+            interpreted records.
         """
         # NOTE: If I wanted to throw early errors where I KNOW
         # something is wrong just based on the order/type of records
@@ -243,8 +218,6 @@ class RecordTypes:
         def __init__(self, **records):
             self.records = records
 
-        # NOTE: The use of givenDict is to allow the root_record to
-        # have a record's siblings as well as descendants. 
         def __call__(self, source, root_record=None):
             process_meta_record(source, self)
 
@@ -256,9 +229,6 @@ class RecordTypes:
     #   series = R.Series(one=R.Single_float(), two=R.Single_float(), ...)
     # name the whole:
     #   lst = R.List(5*[R.Single_float()])
-    # NOTE: For now, list only supports basic records, that is any
-    # record that requires only a source. Thus If is not a basic
-    # record.
     class List:
         """A series of unnamed records. Pass in a list of record
         functions. They will be interpreted one after the other.
@@ -280,21 +250,18 @@ def tree_to_values(tree):
     elif isinstance(inside, list):
         for i in range(len(inside)):
             inside[i] = tree_to_values(inside[i])
-    #else:
-        #return tree.value
 
+    # Also works for leaf nodes, just return inside w/o doing
+    # anything.
     return inside
 
 # source is a memoryview of a bytes object.
 def process_meta_record(source, meta_record):
-    # node_stack here will contain an old tree node and it's
-    # corresponding new tree node. And the node's name if it has one.
-    if isinstance(meta_record, RecordTypes.Series):
-        root = Node(dict())
-    else:
-        root = Node(list())
+    root = Node(None)
     remaining_source = source
 
+    # elements of node_stack will contain an old tree node and its
+    # corresponding new tree node. And the node's name if it has one.
     node_stack = [[meta_record, root, None]]
 
     while len(node_stack) != 0:
@@ -319,11 +286,12 @@ def process_meta_record(source, meta_record):
             node_stack.append([resolved_record, new, name])
         else:
             # Only "leaf records" are actual non-meta record functions
-            # that consume source.
-            #print(f'name: {name}, old: {old}')
+            # that consume source. This is in contrast to before,
+            # where series/list were treated as record functions,
+            # could be passed source to consume it, and returned
+            # remaining source.
             value, remaining_source = old(
                     remaining_source, root_record=root, current=new)
-            #print(f'value info: ({value}, {bytes(remaining_source)})')
             new.value = value
 
     #return tree_to_values(root), remaining_source
