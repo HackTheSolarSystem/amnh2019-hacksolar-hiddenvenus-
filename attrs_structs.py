@@ -2,6 +2,7 @@ class Node():
     def __init__(self, value, parent=None):
         self.value = value
         self.parent = parent
+        self._debug_info = None
 
     def add(self, value, name=None):
         if isinstance(self.value, list):
@@ -259,6 +260,7 @@ def tree_to_values(tree):
 def process_meta_record(source, meta_record):
     root = Node(None)
     remaining_source = source
+    start = 0
 
     # elements of node_stack will contain an old tree node and its
     # corresponding new tree node. And the node's name if it has one.
@@ -291,9 +293,25 @@ def process_meta_record(source, meta_record):
             # where series/list were treated as record functions,
             # could be passed source to consume it, and returned
             # remaining source.
+            # TODO: current should be the new.parent, not new. There
+            # is never a situation where this is not appropriate,
+            # unless an If record or other leaf record is the root of
+            # the tree. However, then the current will be None. That's
+            # not bad, and it's a single case that a user can be aware
+            # of.
+            orig_length = len(remaining_source)
             value, remaining_source = old(
                     remaining_source, root_record=root, current=new)
             new.value = value
+
+            new_length = len(remaining_source)
+            consumed_bytes = orig_length - new_length
+            print(f'Bytes consumed by "{name}": {consumed_bytes}')
+            print(f"Type of record: {type(old)}")
+
+            new._debug_info = {'start' : start, 'end' : start + consumed_bytes - 1}
+            start += consumed_bytes
+
 
     #return tree_to_values(root), remaining_source
     return root, remaining_source
