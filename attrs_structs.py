@@ -265,6 +265,7 @@ def process_meta_record(source, meta_record):
     node_stack = [[meta_record, root, None]]
 
     while len(node_stack) != 0:
+        # Old nodes are meta-record functions, or record functions.
         old, new, name = node_stack.pop()
         if isinstance(old, RecordTypes.Series):
             old_children = old.records.items()
@@ -279,8 +280,8 @@ def process_meta_record(source, meta_record):
             length = len(node_stack)
             for child in old.record_list:
                 new_node = Node(None, parent=new)
-                node_stack.insert(length, [v, new_node, None])
-                new.add(child, name=k)
+                node_stack.insert(length, [child, new_node, None])
+                new.add(new_node, name=None)
         elif isinstance(old, RecordTypes.If):
             resolved_record = old(root, new)
             node_stack.append([resolved_record, new, name])
@@ -297,13 +298,3 @@ def process_meta_record(source, meta_record):
     #return tree_to_values(root), remaining_source
     return root, remaining_source
 
-# TODO:
-# - Improve on this to allow references to sibling records (I think
-#   this is done).
-# - Solidify this concept of a "basic record". What is it? Is is just
-#   a record of fixed length which requires no information aside from
-#   the binary source to read stuff from? Does it have to know its
-#   length?
-#       - This is good enough for now. Later and better meanings will
-#         come from working with this and running face-first into
-#         errors, not from a bunch of armchair planning.
