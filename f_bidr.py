@@ -175,17 +175,24 @@ def physical_records(source, root_record=None):
 
     return records, rest
 
+# Jesus, there was some terrible fucking bug in here before. There's
+# 5187 logical records in these files. Sigh. FILE_15 is 90 MB large,
+# and I saw 30+ million logical records. That would mean each logical
+# record is at most 3 bytes big. That should've sent huge alarm bells
+# ringing. largest file I have is 99 MB large.
 def count_logical_recs(source):
     start = 0
     records = 0
+    prefix_length = 9
+    primary_label_length = 12
     while start < len(source):
-        label_offset = start + 12
-        if not bytes(source[start:label_offset]).startswith(b"NJPL"):
+        check = source[start:start+12].startswith(b'NJPL1I000')
+        if not check:
             break
+        label_offset = start + primary_label_length
         length_bytes = source[label_offset:label_offset+8]
         length = R.AsciiInteger(8)(length_bytes)[0]
-        #print(f'record {records}')
-        start = label_offset + 8 + length
+        start += 20 + length
         records += 1
 
     return records
