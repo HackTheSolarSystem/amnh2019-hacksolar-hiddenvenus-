@@ -378,7 +378,7 @@ class LargeMetaRecordTests(unittest.TestCase):
                 remaining_length=R.Integer(1),
                 label=R.If(
                     lambda root, current:
-                        current.p['data_class'],
+                        current['data_class'],
                     lambda value:
                         LargeMetaRecordTests.annotation_labels['per-orbit'] if value == 1 else
                         LargeMetaRecordTests.annotation_labels['radiometer']))),

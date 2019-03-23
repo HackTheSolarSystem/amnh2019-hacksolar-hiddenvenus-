@@ -29,6 +29,40 @@ class Node():
     def is_leaf(self):
         return isinstance(self.value, (dict, list))
 
+    # TODO: A distinction between metarecord nodes and nodes that just
+    # happen to contain a list or dict should be made. The printing is
+    # very ugly for lists of stuff. Change process_meta_record and
+    # Node to include this information on the node, have _print use
+    # the info for printing. Basically, only metarecord nodes will get
+    # the recursive treatment.
+    @staticmethod
+    def _print(tree, prefix="", path=None):
+        if not isinstance(tree, Node):
+            return str(tree)
+        real_path = ['/'] if path is None else path
+        try: 
+            inside = tree.value
+            new_prefix = prefix + '\t'
+            tree_text = ''
+            tree_text += f'{prefix}{repr(tree)}: {tree._debug_info}\n'
+            if isinstance(inside, dict):
+                for k, v in inside.items():
+                    tree_text += f'{prefix}{k}\n'
+                    tree_text += Node._print(v, new_prefix, real_path + [k]) + "\n"
+            elif isinstance(inside, list):
+                for i in range(len(inside)):
+                    tree_text += f'{prefix}{i}\n'
+                    tree_text += Node._print(inside[i], new_prefix, real_path + [i]) + "\n"
+
+            return tree_text
+        except Exception as e: 
+            print(f'Offending node: "{real_path}"')
+            raise e
+
+    def __str__(self):
+        return self._print(self)
+
+
 class RecordTypes:
     class Integer:
         """Binary record for little endian integers of fixed length."""
@@ -220,7 +254,7 @@ class RecordTypes:
             self.records = records
 
         def __call__(self, source, root_record=None):
-            process_meta_record(source, self)
+            return process_meta_record(source, self)
 
     # For a series of records that are named as one group rather than
     # indidivually. For example, the radiometer data annotation labels
@@ -241,9 +275,17 @@ class RecordTypes:
             self.record_list = record_list
 
         def __call__(self, source):
-            process_meta_record(self)
+            return process_meta_record(source, self)
 
+# Mutates original tree.
+# TODO: Changes from Node._print are applicable here, too.
 def tree_to_values(tree):
+    # Adding this because custom record functions may create nodes
+    # whose value is a list/dict, but wasn't a metarecord, so the
+    # children won't be nodes.
+    if not isinstance(tree, Node):
+        return tree
+
     inside = tree.value
     if isinstance(inside, dict):
         for k, v in inside.items():
@@ -257,6 +299,19 @@ def tree_to_values(tree):
     return inside
 
 # source is a memoryview of a bytes object.
+# TODO: This doesn't work with nodes returned from a custom record
+# function. That kinda sucks, but I can worry about that later. If I
+# try to replace the new_node with the node produced by record
+# function, then I gotta really replace it. Replace it as that child
+# of the parent, too. That's hard. I can either write a replace
+# function, or I can change the function to add children to parents as
+# children are processed, rather than when parents are processed. Thus
+# it would be easy to replace a child. Alternatively, I can make name
+# useful for List records too, make the name a number. This way I can
+# handle replacement at the child level.
+# TODO: Add an optional start value. Would go a long way toward
+# intelligble debug info for custom record functions that use
+# process_meta_record internally.
 def process_meta_record(source, meta_record):
     root = Node(None)
     remaining_source = source
@@ -285,7 +340,7 @@ def process_meta_record(source, meta_record):
                 node_stack.insert(length, [child, new_node, None])
                 new.add(new_node, name=None)
         elif isinstance(old, RecordTypes.If):
-            resolved_record = old(root, new)
+            resolved_record = old(root, new.p)
             node_stack.append([resolved_record, new, name])
         else:
             # Only "leaf records" are actual non-meta record functions
@@ -293,26 +348,18 @@ def process_meta_record(source, meta_record):
             # where series/list were treated as record functions,
             # could be passed source to consume it, and returned
             # remaining source.
-            # TODO: current should be the new.parent, not new. There
-            # is never a situation where this is not appropriate,
-            # unless an If record or other leaf record is the root of
-            # the tree. However, then the current will be None. That's
-            # not bad, and it's a single case that a user can be aware
-            # of.
             orig_length = len(remaining_source)
             value, remaining_source = old(
-                    remaining_source, root_record=root, current=new)
+                    remaining_source, root_record=root, current=new.p)
             new.value = value
 
             new_length = len(remaining_source)
             consumed_bytes = orig_length - new_length
-            print(f'Bytes consumed by "{name}": {consumed_bytes}')
-            print(f"Type of record: {type(old)}")
+            #print(f'Bytes consumed by "{name}": {consumed_bytes}')
+            #print(f"Type of record: {type(old)}")
 
             new._debug_info = {'start' : start, 'end' : start + consumed_bytes - 1}
             start += consumed_bytes
 
-
-    #return tree_to_values(root), remaining_source
     return root, remaining_source
 
