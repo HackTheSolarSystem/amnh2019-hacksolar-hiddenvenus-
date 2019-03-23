@@ -27,19 +27,6 @@ def translate_bytes(hex_string):
 def int_to_bytes(number, length, signed=False):
     return number.to_bytes(length, 'little', signed=signed)
 
-def print_tree(tree, prefix=""):
-    inside = tree.value
-    print(f'{prefix}{tree}: {tree._debug_info}')
-    #print(f'{prefix}{tree}: {tree._debug_info}, {inside}')
-    if isinstance(inside, dict):
-        for k, v in inside.items():
-            print(f'{prefix}{k}')
-            print_tree(v, prefix + '\t')
-    elif isinstance(inside, list):
-        for i in range(len(inside)):
-            print(f'{prefix}{i}')
-            print_tree(inside[i], prefix + '\t')
-
 class IntegersTests(unittest.TestCase):
     def testReadUnsigned(self):
         int_record = R.Integer(1)
