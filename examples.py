@@ -43,7 +43,12 @@ image = np.array(lines)
 plt.imsave('sample-image.png', image, cmap=gray)
 
 # Go oogle that. It's so teasingly somewhere between TV static and
-# drab planet surface. You may have questions about whether or not
+# drab planet surface. 
+
+# This is image metadata:
+info = records[0]['secondary_header']['annotation_block']['label']
+
+# You may have questions about whether or not
 # this is correct. I do too. There are helpful references and
 # information both in the logical record, and in the BIDR report which
 # is in papers+documents/MGN-FBIDR-SIS-SDPS-101-RevE.pdf
@@ -53,12 +58,19 @@ plt.imsave('sample-image.png', image, cmap=gray)
 #   to interpret single-look data (but FILE_15 is multi-look data,
 #   which I can work with right now)
 # - Page 50 speaks more about how pixel intensity is derived.
-# - record[0]['secondary_header']['annotation_block']['label'] (we'll
-#   call this info from now on) is some metadata about the image.
-#   Explanations of the contained fields are on page 39. Aside from
+# - Explanations of the fields of `info` are on page 39. Aside from
 #   printing info out to explore information contained within, you can
 #   look at annotation_labels['image-data'] from f_bidr.py for a list
 #   of the field names in the info dictionary. For instance,
 #   info['line_count'] is the number of lines in the image, and the
-#   field name is the same as given in
-#   annotation_labels['image-data'].
+#   field name is the same as given in annotation_labels['image-data'].
+
+# A last note: there may be some traps you'll fall into. 
+# - For one, if you look at info['line_length'], you'll find it's 516,
+#   as opposed to the 512 I told you. I've read everything in from the
+#   binary file as given; there really are 516 bytes in each image
+#   line, but the 1st four bytes specify the first and last non-filler
+#   pixels. They're not pixels at all.
+# - Not all the information that's read is interpreted usefully, like
+#   times.
+
