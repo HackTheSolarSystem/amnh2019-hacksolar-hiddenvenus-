@@ -53,6 +53,12 @@ plt.imsave('sample-image.png', image, cmap=gray)
 #   to interpret single-look data (but FILE_15 is multi-look data,
 #   which I can work with right now)
 # - Page 50 speaks more about how pixel intensity is derived.
-# - record[0]['secondary_header']['annotation_block']['label'] is some
-#   metadata about the image. Explanations of the contained fields are
-#   on page 39.
+# - record[0]['secondary_header']['annotation_block']['label'] (we'll
+#   call this info from now on) is some metadata about the image.
+#   Explanations of the contained fields are on page 39. Aside from
+#   printing info out to explore information contained within, you can
+#   look at annotation_labels['image-data'] from f_bidr.py for a list
+#   of the field names in the info dictionary. For instance,
+#   info['line_count'] is the number of lines in the image, and the
+#   field name is the same as given in
+#   annotation_labels['image-data'].
