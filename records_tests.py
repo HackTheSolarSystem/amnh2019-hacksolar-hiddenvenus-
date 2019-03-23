@@ -594,7 +594,7 @@ class LargeMetaRecordTests(unittest.TestCase):
 
         record = LargeMetaRecordTests.logical_record_12_17
         interpretation, remaining_source = process_meta_record(data, record)
-        print_tree(interpretation)
+        print(interpretation)
         interpretation = tree_to_values(interpretation)
 
         self.assertEqual(expected_interpretation, interpretation)
