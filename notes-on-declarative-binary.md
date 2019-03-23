@@ -352,7 +352,7 @@ over again wherever that appears.
 Another note: having the length of one record be based on another
 record can be handled through something like `RecordTypes.if`.
 
-Later Notes (3/15/18)
+Later Notes (3/15/19)
 =====================
 
 Another oversight: any compound record may contain another compound
@@ -524,7 +524,7 @@ The series idea is still good.
   and they allow for record functions to specify the names of the
   values that they return.
 
-Later Notes (3/18/18)
+Later Notes (3/18/19)
 =====================
 
 I must leave copying/slicing the source as a model. It would be okay
@@ -591,3 +591,39 @@ On 2nd thought though, it's true but unimportant. Most users will
 probably process some records and inspect their values
 programmatically, not with If. I built what I built to capture common
 patterns.
+
+Later Notes (3/23/19)
+=====================
+
+Things have solidified. There are now record functions:
+
+- A function which takes a memoryview and keyword arguments
+  root_record and current (the main meta-record being parsed if there
+  is one, and the current meta-record being parsed respectively).
+- A callable whose `__call__` function has same signature as above and
+  has a `.length` property. This allows meta-records to know their
+  length before receiving input.
+
+And meta-record functions. Meta-record functions just specify
+relationships between basic records. They're not record functions
+themselves, do not have to abide by those rules. There's a greater
+degree of coupling allowed between the meta-records than there are
+between metas and basic record functions.
+
+Processing Series and Lists is done with `process_meta_record`. It's
+come out a little weird, but it builds a tree iteratively rather than
+recursively. One node at a time. This is done so that the root record
+and current node are always available when we're processing the next
+record.
+
+There's a few things I haven't accounted for:
+
+- Cooperation b/w custom record functions and meta-records. They work
+  well with the pre-built record function callables, but not with
+  things that can have arbitrary return values (like a Node, or a
+  list, or a dict).
+    - if a custom returns a Node, then it ought to overwrite the node
+      getting processed rather than just get nested in it.
+    - If a custom returns a dict or list, that's a bit problematic.
+      Nodes whose values are lists or dicts are treated as
+      meta-records, and that falls apart with custom records.
