@@ -1,6 +1,6 @@
 from f_bidr import read_logical_records
 
-# For creating and viewing an image, and nothing else.
+# These three are for creating and viewing an image, and nothing else.
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
