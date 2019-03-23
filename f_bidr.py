@@ -114,8 +114,9 @@ def image_data_block(source, root_record, current):
     )
 
     image = R.List(num_lines*[line])
-    value, rest = image(source)
-    return value.value, rest
+    #value, rest = image(source)
+    #return value.value, rest
+    return image(source)
 
 data_blocks['image-data'] = image_data_block
 
@@ -201,7 +202,8 @@ def read_logical_records(source, number=None):
     records = []
     rest = memoryview(source)
     max_records = count_logical_recs(source)
-    to_read = min(number, max_records)
+    to_read = (max_records if number is None 
+                else min(number, max_records))
 
     for i in range(to_read):
         value, rest = logical_record(rest)
