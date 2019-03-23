@@ -92,12 +92,6 @@ data_blocks = {
         oblique_sinusoidal_stop=vax_int,
         blanks=R.PlainBytes(512-307),
     ),
-    #'image-data' : R.If(
-        #lambda root, current:
-            #root['secondary_header']['annotation_block']['label'],
-        #lambda v:
-            #R.List(v['line_count'].value * 
-                #[R._FigureOutLater(v['line_length'].value)])),
     'radiometer' : R._FigureOutLater(12),
 }
 
@@ -106,18 +100,17 @@ def image_data_block(source, root_record, current):
     num_lines = info['line_count'].value
     line_length = info['line_length'].value
 
-    def clean_line(source, root_record, current):
-        offset = current['offset_to_first'].value
-        pointer = current['pointer_to_last'].value
-        valid_pixels = bytes(source[offset:pointer])
+    def pixels(source, root_record, current):
+        num_pixels = line_length - 4
+        the_pixels = bytes(source[:num_pixels])
         # the -4 is for the two integers prior, as they're counted as
         # part of the line length.
-        return list(valid_pixels), source[line_length - 4:]
+        return list(the_pixels), source[num_pixels:]
 
     line = R.Series(
         offset_to_first = R.Integer(2),
         pointer_to_last = R.Integer(2),
-        line=clean_line
+        line=pixels
     )
 
     image = R.List(num_lines*[line])
@@ -197,23 +190,34 @@ def count_logical_recs(source):
 
     return records
 
-# NOTE: File 15 has more than one logical record. It's a series of
-# logical records.
-with open("sample-data/FILE_15", 'rb') as f:
-    contents = f.read()
+def read_logical_records(source, number=None):
+    """
+    - source is a bytes object.
+    - number is the number of records to read. If omitted, read as
+      many records as possible.
+    - This is not a record function. Think of it as a front-end to
+      this whole file.
+    """
     records = []
-    rest = memoryview(contents)
-    num_records = count_logical_recs(rest)
-    for i in range(num_records):
+    rest = memoryview(source)
+    max_records = count_logical_recs(source)
+    to_read = min(number, max_records)
+
+    for i in range(to_read):
         value, rest = logical_record(rest)
         records.append(value)
 
     records = [tree_to_values(r) for r in records]
+    return records
 
 # File 15 notes:
 # - For the 1st 1000 logical records of the test FILE_15, all the line
 #   lengths are same, some have different line counts. So sounds safe
 #   to assume that all logical records are same width.
+# - The offset and pointer in the first line of each image block (the
+#   data block in each logical record) are copied from the 2nd line.
+#   This is an error in the original Magellan work (page 49 of BIDR
+#   book).
 # - Where to find the orientation of an image?
 #   - found it in per-orbit parameters (file 12). See if you can find
 #     another source that's in FILE_15 instead of reaching for another
