@@ -164,12 +164,18 @@ class RecordTypes:
     @staticmethod
     def _fraction_from_bits(*bits):
         accum = 0
-        # power should end in -1.
-        # if there's one bit, then power starts at -1 and ends at -1.
-        # if there's two bits, then power starts at -1, and ends at
-        # -2.
-        # if there's n bits, then power starts at -1 and ends at -n.
-        power = -len(bits)
+        # Sources:
+        # <https://sixlettervariable.blogspot.com/2007/05/vax-floating-point-numbers.html>
+        # <https://nssdc.gsfc.nasa.gov/nssdc/formats/VAXFloatingPoint.htm>
+        # BIDR Document
+        # The MSB should have place value 2^(-2) (2^0, and 2^(-1) are
+        # implicit).
+        # power should end in -2.
+        # if there's one bit, then power starts at -2 and ends at -2.
+        # if there's two bits, then power starts at -2, and ends at
+        # -3.
+        # if there's n bits, then power starts at -2 and ends at -(n + 1).
+        power = -len(bits) - 1
 
         # NOTE: The order of accumulation is important. Starting from
         # small amounts reduces possibility of rounding errors.
@@ -181,13 +187,14 @@ class RecordTypes:
             accum = accum + bit * 2 ** power
             power = power + 1
 
-        return 1.0 + accum
+        return 0.1 + accum
 
     # NOTE: These are not IEEE 754 floating point numbers. Their
     # format is different, as is the bias on the exponent (-128,
     # instead of IEEE 754's -127).
     # TODO: See if you can just write the mantissa bits to memory in
     # correct arrangement, rather than perform arithmetic.
+    # TODO: Rename of VAXFloat.
     class Float:
         """Binary record for floating point numbers in NASA's format,
         which are not IEEE 754 floating point numbers."""
@@ -199,15 +206,25 @@ class RecordTypes:
             else:
                 raise ValueError
 
-        def __call__(self, source, **kwargs):
-            bits = RecordTypes._bytes_to_bits(source[:self.length])
-            exponent = RecordTypes._bytes_from_bits(*bits[7:15])
-            if exponent == 0:
-                return float(0), source[self.length:]
+        # Could be a bit of a bottleneck of speed if a file has tons
+        # of VAX floats. Slow parts:
+        # - Creating a bit array.
+        # - Creating the fraction. This should be hands-down slowest
+        #   part. Rearranging lists, copies, a loop.
+        # - Calculating sign. This shouldn't be very expensive as
+        #   compared to getting the fraction value. That should be so
+        #   much more expensive.
+        def __call__(self, source, **kwargs): bits =
+        RecordTypes._bytes_to_bits(source[:self.length]) exponent =
+        RecordTypes._bytes_from_bits(*bits[7:15]) if exponent == 0:
+            return float(0), source[self.length:]
 
             exponent = exponent - 128
+            # If necessary an optimization is:
+            # sign = 1 - 2 * bit
             sign = 1 if bits[15] == 0 else -1
-            fraction = RecordTypes._fraction_from_bits(*bits[16:], *bits[:7])
+            fraction = RecordTypes._fraction_from_bits(
+                    *bits[48:], *bits[32:48], *bits[16:32], *bits[:7])
             value = sign * fraction * 2 ** exponent
             return value, source[self.length:]
 
@@ -269,6 +286,9 @@ class RecordTypes:
         def __call__(self, source, root_record=None):
             return process_meta_record(source, self)
 
+    # NOTE: THe common idiom of creating lists from a multiplied list
+    # of records isn't too harsh on memory. It doesn't deep copy those
+    # records, it's all shallow copies.
     class List:
         """A series of unnamed records. Pass in a list of record
         functions. They will be interpreted one after the other.
@@ -382,3 +402,31 @@ def process_meta_record(source, meta_record):
 
     return root, remaining_source
 
+# TODO:
+# - Create an Ignore metarecord. Can take length or a record function.
+#   The length ignores some number of bytes, the record function
+#   processes the record function, but then tosses the value. The tree
+#   structure makes an Ignore metarecord very easy. I can have
+#   tree_to_values get rid of ignore values. Good use case is for
+#   simplified versions of bidr records, where I wanna look at just a
+#   little bit of data and ignore the rest.
+#       - Optimization: For records with known and fixed length,
+#         extract the length and use that instead, rather than using
+#         the record function. If length is not present or is unknown,
+#         then use the record function and toss the result.
+#       - Allow to give a length like an If, using the root_record.
+#         Not sure how to pass that in, though. record function is a
+#         callable, so is this. How to differentiate? This would make
+#         for real simple
+# - Make a metarecord for remaining length of a metarecord, rather
+#   than a reserved name (which is a bit clunky). f-bidr works like
+#   so: the total length of record is bytes so far (after length has
+#   been read in) remaining bytes. example: logical record length is
+#   bytes 12-19. The read-in length gives bytes remaining from byte 20
+#   and on. So if remaining_length were 0, then last byte of record is
+#   19. So the exclusive end is byte after remaining_length field +
+#   remaining_length. (with example, the exclusive end byte of a
+#   logical record with remaining length 0 is byte 20: 20 + 0). Input
+#   should be similar to Ignore metarecord.
+# - Change is_leaf to use _ismrecord. That's really what _ismrecord
+#   records.
