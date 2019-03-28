@@ -8,6 +8,12 @@ vax_int = R.Integer(4)
 sclk_time = R.FixedLengthString(15)
 vbf85_coord = R._FigureOutLater(4)
 
+def complex_number(source, **kwargs):
+    flt = R.Float('single')
+    real, rest = flt(source)
+    imag, rest = flt(rest)
+    return complex(real, imag), rest
+
 annotation_labels = {
     'image-data' : R.Series(
         line_count=R.Integer(2),
@@ -16,8 +22,8 @@ annotation_labels = {
         proj_origin_lon=R.Float('single'),
         reference_lat=R.Float('single'),
         reference_lon=R.Float('single'),
-        reference_offset_lines=R.Integer(4),
-        reference_offset_pixels=R.Integer(4),
+        reference_offset_lines=R.Integer(4, signed=True),
+        reference_offset_pixels=R.Integer(4, signed=True),
         burst_counter=R.Integer(4),
         nav_unique_id=R.FixedLengthString(32),
     ),
@@ -64,7 +70,7 @@ data_blocks = {
         lon_ascending_node=R.Float('double'),
         arg_periapsis=R.Float('double'),
         # seconds
-        orbit_period=R._FigureOutLater(4),
+        orbit_period=R.Float('single'),
         reference_sclk_factor=R.FixedLengthString(13),
         conversion_slope=R.FixedLengthString(12),
         intercept_coef=R.FixedLengthString(19),
@@ -76,7 +82,7 @@ data_blocks = {
             last_sinusoidal=vax_int,
         ),
         projection_params=R.Series(
-            projection_reference_lon=R._FigureOutLater(4),
+            projection_reference_lon=R.Float('single'),
             burst_counter=vax_int,
             time_crosses_85_deg=R.Float('double'),
         ),
@@ -87,9 +93,10 @@ data_blocks = {
             z=R.List(3*[vbf85_coord]),
         ),
         # Not sure what type is. Could be single.
-        lon_oblique_sinusoidal_origin=R._FigureOutLater(4),
-        oblique_sinusoidal_start=vax_int,
-        oblique_sinusoidal_stop=vax_int,
+        lon_oblique_sinusoidal_origin=R.Float('single'),
+        inverse_lat_oblique_sinusoidal_origin=R.Float('single'),
+        oblique_sinusoidal_start=R.Float('double'),
+        oblique_sinusoidal_stop=R.Float('double'),
         blanks=R.PlainBytes(512-307),
     ),
     'radiometer' : R._FigureOutLater(12),
@@ -151,29 +158,11 @@ logical_record = R.Series(
                 value in [4, 68, 16] else
             data_blocks['radiometer']))
 
-# record representing a physical record. Physical records are always
-# 32500 bytes long. If the information they contain was less than
-# this, then the info is padded with the '^' character. All files
-# should be integer multiples of 32500 bytes in size. This is true for
-# orbit 376's (F_0376) files at least, as I checked.
-def physical_record(source, root_record=None):
-    value, rest = R.PlainBytes(32500)(source, root_record)
-    return value.rstrip(b'^'), rest
-
-def physical_records(source, root_record=None):
-    rest = source
-    records = []
-    while len(rest) > 0:
-        value, rest = physical_record(rest, root_record)
-        records.append(value)
-
-    return records, rest
-
 # Jesus, there was some terrible fucking bug in here before. There's
-# 5187 logical records in these files. Sigh. FILE_15 is 90 MB large,
+# 5187 logical records in these files. Sigh. FILE_15 is ~100 MB large,
 # and I saw 30+ million logical records. That would mean each logical
-# record is at most 3 bytes big. That should've sent huge alarm bells
-# ringing. largest file I have is 99 MB large.
+# record is around 3 bytes big. That should've sent huge alarm bells
+# ringing.
 def count_logical_recs(source):
     start = 0
     records = 0
@@ -190,6 +179,17 @@ def count_logical_recs(source):
         records += 1
 
     return records
+
+def rearrange_logical_record(record):
+    """Places the important information in easy-to-reach places."""
+    new = { 
+        '_' : record, 
+        'data' : record['data_block'],
+        'type' : record['secondary_header']['annotation_block']['data_class'],
+    }
+    new.update(record['secondary_header']['annotation_block']['label'])
+    new.update(orbit_number=record['secondary_header']['orbit_number'])
+    return new
 
 def read_logical_records(source, number=None):
     """
@@ -210,6 +210,7 @@ def read_logical_records(source, number=None):
         records.append(value)
 
     records = [tree_to_values(r) for r in records]
+    records = [rearrange_logical_record(r) for r in records]
     return records
 
 # File 15 notes:
@@ -226,13 +227,8 @@ def read_logical_records(source, number=None):
 #     file.
 # - Some records had an offset and pointer that had to have been
 #   wrong. Like, their values were just too large. What happened?
-#       - I saw that the first two 16-bit values in each line are def
-#         16 bit unsigned integers. I saw also that I have to
-#         interpret these values a little differently for left/right
-#         facing images. None of this accounts for the pointer and
-#         offset being larger than the line length. Nor does it
-#         account for the line length being larger than it apparently
-#         should be
+#       - This went away after I re-did the attrs_structs work. They
+#         all seem sensible now.
 # - Do we interpret offset and pointer for left and right pointing
 #   images diffrently?
 #       - Yup. There's an example on page 51. 
@@ -242,3 +238,9 @@ def read_logical_records(source, number=None):
 #             the last valid pixel (exclusive end).
 #           - Right looking images: The same as left looking image but
 #             with 4 added to both offset and pointer.
+# - Why is the projection origin latitude always 0 deg?
+#   - I think it's just because that's how a map works. The sinusoidal
+#     projection is another form of map projection, another way of
+#     viewing a sphere's surface as a flat 2d shape. This reference is
+#     within the lat/lon coordinate grid of the planet, however that's
+#     determined.
