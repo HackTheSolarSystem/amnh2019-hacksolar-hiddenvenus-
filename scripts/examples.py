@@ -49,7 +49,7 @@ plt.imsave('sample-image.png', image, cmap=gray)
 info = records[0]['secondary_header']['annotation_block']['label']
 
 # You may have questions about whether or not
-# this is correct. I do too. There are helpful references and
+# this image is correct. I do too. There are helpful references and
 # information both in the logical record, and in the BIDR report which
 # is in papers+documents/MGN-FBIDR-SIS-SDPS-101-RevE.pdf
 # - Page 48 talks about the actual image data. You'll find that there
@@ -57,6 +57,9 @@ info = records[0]['secondary_header']['annotation_block']['label']
 #   interpreted differently. I don't currently have anything written
 #   to interpret single-look data (but FILE_15 is multi-look data,
 #   which I can work with right now)
+#   - A note: Once we work out the right way to treat the lines of
+#     pixels, I can change my binary reader to just read the image
+#     itself. It will be quick work.
 # - Page 50 speaks more about how pixel intensity is derived.
 # - Explanations of the fields of `info` are on page 39. Aside from
 #   printing info out to explore information contained within, you can
@@ -73,4 +76,3 @@ info = records[0]['secondary_header']['annotation_block']['label']
 #   pixels. They're not pixels at all.
 # - Not all the information that's read is interpreted usefully, like
 #   times.
-
