@@ -8,60 +8,48 @@ import numpy as np
 # logical records.
 with open("sample-data/FILE_15", 'rb') as f:
     contents = f.read()
-    records = read_logical_records(contents, 500)
-    #records = read_logical_records(contents)
+    #records = read_logical_records(contents, 1000)
+    records = read_logical_records(contents)
 
 gray = matplotlib.cm.get_cmap('gray')
 
-def image_shift(image, shift):
+def image_shift(image, shift, total_width, most_negative):
     # 0 pixel offset means no shifting.
     # For now we'll say that a positive offset is a right shift
     # and a negative offset is a left shift.
     # What's a right shift by i pixels? image[0,0] -> image[0,i]
     # What gets inserted in the missing pixels? Black.
-    height = image.shape[0]
-    black = np.zeros((height, abs(shift)))
-    #print(f"Original shape: {image.shape}")
-    #print(f"Black region: {black.shape}")
-    # If shift to right, put black at left. To keep original width
-    # (row length), chop off the last shift number of columns.
-    # If shift to left, put black at right, and chop off the first few
-    # columns.
-    retVal = image
-    if shift > 0:
-        #piece = image[:, :-shift]
-        shifted = np.concatenate([black, image], axis=1)
-        #return np.concatenate([black, piece], axis=1)
-        retVal = shifted[:, :-shift]
-    elif shift < 0:
-        #piece = image[:, -shift:]
-        shifted = np.concatenate([black, image], axis=1)
-        #return np.concatenate([piece, black], axis=1)
-        #retVal = np.concatenate([piece, black], axis=1)
-        retVal = shifted[:, -shift:]
-    #print(f"Piece shape: {piece.shape}")
-    #print(f"Final shape: {retVal.shape}")
-    return retVal
-    #return image
+    height, width = image.shape
+    picture_left = shift - most_negative
+    black = np.zeros((height, total_width))
+    black[:, picture_left:picture_left + width] = image
+    return black
 
-# Let's see what shifting images over by the pixel offset does. We'll
-# clip the sides. if the image were to slide out of the 512 pixel
-# range.
 def image_stitch(records, sort_by, pixel_shift=True):
-    records.sort(key=lambda r: r[sort_by], reverse=True)
+    # The final picture should be wide enough to fit any piece at
+    # any of the offsets for those pieces. At minimum, that's a width
+    # of the range of offsets (max_offset - min_offset), because a
+    # picture's left-most pixel can go anywhere in that range. Then,
+    # the picture whose offset is the max will have 512 pixels to the
+    # right.
+    #records.sort(key=lambda r: r[sort_by], reverse=True)
+    pixel_offsets = [r['reference_offset_pixels'] for r in records]
+    most_neg_offset = min(pixel_offsets)
+    min_offset, max_offset = min(pixel_offsets), max(pixel_offsets)
+    max_width = max_offset - min_offset + 512
+    # Index 0 in the final image will be the most negative offset
+    # pixel.
+    # For now, assume that each picture should directly touch previous
+    # picture.
     image_data = [[x['line'] for x in r['data']] for r in records]
     images = [np.array(x) for x in image_data]
-    black_strip = np.zeros((1, 512))
-    if pixel_shift:
-        for i in range(len(images)):
-            images[i] = image_shift(
-                    images[i], records[i]['reference_offset_pixels'])
-    #sep_images = []
-    #for image in images:
-        #sep_images.append(image)
-        #sep_images.append(black_strip)
+    #shifted_images = []
+    for i in range(len(images)):
+        images[i] = image_shift(
+            images[i], pixel_offsets[i],
+            max_width, most_neg_offset)
     large_image = np.concatenate(images, axis=0)
-    plt.imsave('long-strip.png', large_image, cmap=gray)
+    plt.imsave('/tmp/long-strip.png', large_image, cmap=gray)
     return large_image
 
 #for i, image in enumerate(images):
