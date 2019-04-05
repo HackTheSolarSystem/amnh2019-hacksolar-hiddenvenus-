@@ -1,8 +1,9 @@
 from f_bidr import logical_record, count_logical_recs, read_logical_records
 
-import matplotlib.pyplot as plt
-import matplotlib
+#import matplotlib.pyplot as plt
+#import matplotlib
 import numpy as np
+import imageio
 
 # NOTE: File 15 has more than one logical record. It's a series of
 # logical records.
@@ -11,7 +12,7 @@ with open("sample-data/FILE_15", 'rb') as f:
     #records = read_logical_records(contents, 100)
     records = read_logical_records(contents)
 
-gray = matplotlib.cm.get_cmap('gray')
+#gray = matplotlib.cm.get_cmap('gray')
 
 # Earlier rows are the top of the image.
 # Earlier columns are the left of the image.
@@ -36,6 +37,8 @@ def image_stitch(records, sort_by, save_path=None):
     # I know ahead of time that the last image record should have the
     # largest line offset.
     max_height = max_lines - min_lines + records[-1]['line_count']
+    del pixel_offsets
+    del line_offsets
     try:
         master_picture = np.zeros((max_height, max_width), 
                 dtype=np.uint8)
@@ -63,8 +66,11 @@ def image_stitch(records, sort_by, save_path=None):
         master_picture[top:top + height, left:left + width] = image
     if save_path is None:
         save_path = 'long-strip.png'
-    plt.imsave(save_path, master_picture, cmap=gray)
+    imageio.imwrite(save_path, master_picture)
+    #plt.imsave(save_path, master_picture, cmap=gray)
     return master_picture
+
+image_stitch(records, None)
 
 # Image questions:
 # - What's the orientation of the image lines? I know that the first
