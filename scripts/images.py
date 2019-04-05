@@ -7,7 +7,7 @@ import imageio
 
 # NOTE: File 15 has more than one logical record. It's a series of
 # logical records.
-with open("sample-data/FILE_15", 'rb') as f:
+with open("../sample-data/FILE_15", 'rb') as f:
     contents = f.read()
     #records = read_logical_records(contents, 100)
     records = read_logical_records(contents)
