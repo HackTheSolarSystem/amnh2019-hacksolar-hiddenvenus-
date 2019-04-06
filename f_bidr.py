@@ -14,6 +14,9 @@ def complex_number(source, **kwargs):
     imag, rest = flt(rest)
     return complex(real, imag), rest
 
+def byteArray(length):
+    return lambda s, **rest: bytearray(s[:length]), s[length:]
+
 annotation_labels = {
     'image-data' : R.Series(
         line_count=R.Integer(2),
@@ -100,30 +103,62 @@ data_blocks = {
         blanks=R.PlainBytes(512-307),
     ),
     'radiometer' : R._FigureOutLater(12),
+    'processing' : R.Series(
+        burst_counter=vax_int,
+        burst_reference_time=tdb_seconds,
+        burst_center_time=tdb_seconds,
+        echo_delay_time=R.Float('single'),
+        is_test=vax_int,
+        is_anomaly=vax_int,
+        is_error=vax_int,
+        # TODO: This is a good candidate for an enumeration.
+        projection=vax_int,
+        craft_pos_j2000=R.List(3*[R.Float('single')]),
+        craft_pos_vbf85=R.List(3*[R.Float('single')]),
+        craft_velocity_j2000=R.List(3*[R.Float('single')]),
+        craft_velocity_vbf85=R.List(3*[R.Float('single')]),
+        craft_acceleration_j2000=R.List(3*[R.Float('single')]),
+        craft_acceleration_vbf85=R.List(3*[R.Float('single')]),
+        q1=R.Float('single'),
+        q2=R.Float('single'),
+        q3=R.Float('single'),
+        q4=R.Float('single'),
+        delta_q1=R.Float('single'),
+        delta_q2=R.Float('single'),
+        delta_q3=R.Float('single'),
+        delta_q4=R.Float('single'),
+        boresight_orientation_vme85=R.List(3*[R.Float('single')]),
+        boresight_orientation_vbf85=R.List(3*[R.Float('single')]),
+        # Parameter 42/300
+        look_angle=R.Float('single'),
+        done_for_now=R._FigureOutLater(1148 - 180),
+        blanks=R.PlainBytes(1280 - 1148),
+    )
 }
 
+# Multi-look image data, not single-look. I haven't found a
+# single-look image yet.
+# Done manually for speed.
 def image_data_block(source, root_record, current):
     info = root_record['secondary_header']['annotation_block']['label']
     num_lines = info['line_count'].value
     line_length = info['line_length'].value
+    num_image_bytes = num_lines * line_length
+    image_bytes = source[:num_image_bytes]
+    rest = source[num_image_bytes:]
+    lines = []
+    remaining_lines = image_bytes
 
-    def pixels(source, root_record, current):
-        num_pixels = line_length - 4
-        the_pixels = bytes(source[:num_pixels])
-        # the -4 is for the two integers prior, as they're counted as
-        # part of the line length.
-        return list(the_pixels), source[num_pixels:]
+    for i in range(num_lines):
+        line = remaining_lines[:line_length]
+        remaining_lines = remaining_lines[line_length:]
+        lines.append({
+            'offset_to_first' : R.Integer(2)(line[:2])[0],
+            'pointer_to_last' : R.Integer(2)(line[2:4])[0],
+            'line' : bytearray(line[4:]),
+        })
 
-    line = R.Series(
-        offset_to_first = R.Integer(2),
-        pointer_to_last = R.Integer(2),
-        line=pixels
-    )
-
-    image = R.List(num_lines*[line])
-    #value, rest = image(source)
-    #return value.value, rest
-    return image(source)
+    return lines, rest
 
 data_blocks['image-data'] = image_data_block
 
@@ -158,11 +193,6 @@ logical_record = R.Series(
                 value in [4, 68, 16] else
             data_blocks['radiometer']))
 
-# Jesus, there was some terrible fucking bug in here before. There's
-# 5187 logical records in these files. Sigh. FILE_15 is ~100 MB large,
-# and I saw 30+ million logical records. That would mean each logical
-# record is around 3 bytes big. That should've sent huge alarm bells
-# ringing.
 def count_logical_recs(source):
     start = 0
     records = 0
@@ -238,9 +268,3 @@ def read_logical_records(source, number=None):
 #             the last valid pixel (exclusive end).
 #           - Right looking images: The same as left looking image but
 #             with 4 added to both offset and pointer.
-# - Why is the projection origin latitude always 0 deg?
-#   - I think it's just because that's how a map works. The sinusoidal
-#     projection is another form of map projection, another way of
-#     viewing a sphere's surface as a flat 2d shape. This reference is
-#     within the lat/lon coordinate grid of the planet, however that's
-#     determined.
