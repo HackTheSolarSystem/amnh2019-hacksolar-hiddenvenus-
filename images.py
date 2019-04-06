@@ -1,18 +1,65 @@
 from f_bidr import logical_record, count_logical_recs, read_logical_records
 
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 #import matplotlib
 import numpy as np
 import imageio
 
 # NOTE: File 15 has more than one logical record. It's a series of
 # logical records.
-with open("sample-data/FILE_15", 'rb') as f:
-    contents = f.read()
-    #records = read_logical_records(contents, 100)
-    records = read_logical_records(contents)
+orb376="sample-data/FILE_15"
+orb382="/home/adam/projects/amnh2019-hacksolar-hiddenvenus/data/MG_4567/F0382_03/file_15"
+orb384="/home/adam/projects/amnh2019-hacksolar-hiddenvenus/data/MG_4567/F0384_02/file_15"
+orb386="/home/adam/projects/amnh2019-hacksolar-hiddenvenus/data/MG_4567/F0386_02/file_15"
+orb390="/home/adam/projects/amnh2019-hacksolar-hiddenvenus/data/MG_4567/F0390_02/file_15"
 
-#gray = matplotlib.cm.get_cmap('gray')
+def multiple_orbits():
+    records = []
+
+    with open(orb376, 'rb') as f:
+        contents = f.read()
+        records += read_logical_records(contents, 250)
+
+    with open(orb382, 'rb') as f:
+        contents = f.read()
+        records += read_logical_records(contents, 250)
+
+    with open(orb384, 'rb') as f:
+        contents = f.read()
+        records += read_logical_records(contents, 250)
+
+    with open(orb386, 'rb') as f:
+        contents = f.read()
+        records += read_logical_records(contents, 250)
+
+    with open(orb390, 'rb') as f:
+        contents = f.read()
+        records += read_logical_records(contents, 250)
+
+    biggun = image_stitch(records, None, None)
+    return biggun, records
+
+
+def process_file(filepath, savepath, slices=3):
+    with open(filepath, 'rb') as f:
+        contents = f.read()
+        #records = read_logical_records(contents, 250)
+        records = read_logical_records(contents)
+
+    #biggun = image_stitch(records, None, None)
+    #imageio.imwrite(savepath, biggun)
+
+    biggun = image_stitch(records, None, None)
+    height = biggun.shape[0]
+    divide_into = slices
+    start = 0
+    count = 0
+    piece_size = height // divide_into
+    while start < height:
+        end = start + piece_size
+        imageio.imwrite(f'{count}-{savepath}', biggun[start:end])
+        start = end
+        count += 1
 
 # Earlier rows are the top of the image.
 # Earlier columns are the left of the image.
@@ -22,6 +69,14 @@ with open("sample-data/FILE_15", 'rb') as f:
 # Later records have smaller line offsets.
 # When concatenating arrays, earlier arrays have lower indexes.
 # So the 1st row of the 1st array is the top row of the image.
+# And thus the 1st line of the 1st record is the top row of the image.
+# The last line of the last record is the bottom row of the image.
+# The image needs to be tall enough to accomodate:
+#   - max of:
+#       - height of 1st record
+#       - offset range
+#   - height of last picture, whose 1st row is on the row of smallest
+#     offset.
 def image_stitch(records, sort_by, save_path=None):
     # The final picture should be wide enough to fit any piece at
     # any of the offsets for those pieces. At minimum, that's a width
@@ -33,18 +88,20 @@ def image_stitch(records, sort_by, save_path=None):
     line_offsets = [r['reference_offset_lines'] for r in records]
     min_pixels, max_pixels = min(pixel_offsets), max(pixel_offsets)
     min_lines, max_lines = min(line_offsets), max(line_offsets)
+    # TODO: 512 assumes constant width of each image piece. Otherwise
+    # I'll have to do something similar for this as I did for the
+    # max_height.
     max_width = max_pixels - min_pixels + 512
+    bottom_image = min(records, key=lambda r:r['reference_offset_lines'])
+    bottom_image_lines = bottom_image['line_count']
     # I know ahead of time that the last image record should have the
-    # largest line offset.
-    max_height = max_lines - min_lines + records[-1]['line_count']
+    # largest line offset. I wanna know the size of image that would
+    # appear at the highest offset.
+    max_height = max_lines - min_lines + bottom_image_lines
     del pixel_offsets
     del line_offsets
-    try:
-        master_picture = np.zeros((max_height, max_width), 
-                dtype=np.uint8)
-    except MemoryError as e:
-        print(f'Attempted shape: {max_height}x{max_width}')
-        raise e
+    print(f'Attempting shape: {max_height}x{max_width}')
+    master_picture = np.zeros((max_height, max_width), dtype=np.uint8)
     for record in records:
         image = np.array([x['line'] for x in record['data']], dtype=np.uint8)
         pixel_shift = record['reference_offset_pixels']
@@ -64,13 +121,7 @@ def image_stitch(records, sort_by, save_path=None):
         # line offset 0, I added max_lines.
         top = -line_shift + max_lines
         master_picture[top:top + height, left:left + width] = image
-    if save_path is None:
-        save_path = 'long-strip.png'
-    imageio.imwrite(save_path, master_picture)
-    #plt.imsave(save_path, master_picture, cmap=gray)
     return master_picture
-
-image_stitch(records, None)
 
 # Image questions:
 # - What's the orientation of the image lines? I know that the first
