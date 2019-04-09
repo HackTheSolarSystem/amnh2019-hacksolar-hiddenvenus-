@@ -1,7 +1,5 @@
 from f_bidr import logical_record, count_logical_recs, read_logical_records
 
-import matplotlib.pyplot as plt
-#import matplotlib
 import numpy as np
 import imageio
 
