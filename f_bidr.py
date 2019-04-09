@@ -33,7 +33,7 @@ annotation_labels = {
     'per-orbit' : R.PlainBytes(0),
     'processing/monitor' : R._FigureOutLater(7),
     'radiometer' : R.Series(
-        scet=R.Float('double'),
+        scet=tdb_seconds,
         lat_q1=R.Float('single'),
         lon_q2=R.Float('single'),
         incidence_angle_q3=R.Float('single'),
@@ -44,10 +44,17 @@ annotation_labels = {
         signal_sensor_temp_coefs=R.List(3*[R.Float('single')]),
         sensor_input_noise_temp=R.Float('single'),
         cable_segment_temps=R.List(5*[R.Float('single')]),
-        cable_segment_losses=R.List(5*[R.Float('single')]),
+        # This seems to be a typo. The binary data itself doesn't
+        # contain enough space for this, and the graph of fields
+        # doesn't contain this (page 43, BIDR report). And the byte
+        # ranges are off for the losses. They go above 88 bytes, and
+        # then back below it for atmospheric_emission_temp.
+        #cable_segment_losses=R.List(5*[R.Float('single')]),
         atmospheric_emission_temp=R.Float('single'),
         atmospheric_attentuation_factor=R.Float('single'),
-        cold_sky_reference_temp=R.Float('single'),
+        # Same as for cable_segment_losses. Doesn't seem to actually
+        # be there.
+        #cold_sky_reference_temp=R.Float('single'),
     )
 }
 
@@ -143,15 +150,12 @@ def image_data_block(source, root_record, current):
     info = root_record['secondary_header']['annotation_block']['label']
     num_lines = info['line_count'].value
     line_length = info['line_length'].value
-    num_image_bytes = num_lines * line_length
-    image_bytes = source[:num_image_bytes]
-    rest = source[num_image_bytes:]
     lines = []
-    remaining_lines = image_bytes
+    rest = source
 
     for i in range(num_lines):
-        line = remaining_lines[:line_length]
-        remaining_lines = remaining_lines[line_length:]
+        line = rest[:line_length]
+        rest = rest[line_length:]
         lines.append({
             'offset_to_first' : R.Integer(2)(line[:2])[0],
             'pointer_to_last' : R.Integer(2)(line[2:4])[0],
@@ -199,7 +203,7 @@ def count_logical_recs(source):
     prefix_length = 9
     primary_label_length = 12
     while start < len(source):
-        check = source[start:start+12].startswith(b'NJPL1I000')
+        check = source.startswith(b'NJPL1I000', start, start+12)
         if not check:
             break
         label_offset = start + primary_label_length
@@ -223,20 +227,28 @@ def rearrange_logical_record(record):
 
 def read_logical_records(source, number=None):
     """
-    - source is a bytes object.
+    - source is a bytes object, or a filepath as string.
     - number is the number of records to read. If omitted, read as
       many records as possible.
     - This is not a record function. Think of it as a front-end to
       this whole file.
     """
+    if isinstance(source, str):
+        with open(source, 'rb') as f:
+            contents = f.read()
+            rest = memoryview(contents)
+        max_records = count_logical_recs(contents)
+    else:
+        rest = memoryview(source)
+        max_records = count_logical_recs(source)
+
     records = []
-    rest = memoryview(source)
-    max_records = count_logical_recs(source)
     to_read = (max_records if number is None 
                 else min(number, max_records))
 
+    new_start = 0
     for i in range(to_read):
-        value, rest = logical_record(rest)
+        value, rest, new_start = logical_record(rest, start=new_start)
         records.append(value)
 
     records = [tree_to_values(r) for r in records]

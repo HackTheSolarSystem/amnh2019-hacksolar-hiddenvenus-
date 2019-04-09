@@ -1,7 +1,8 @@
 class Node():
-    def __init__(self, value, parent=None):
+    def __init__(self, value, parent=None, name=None):
         self.value = value
         self.parent = parent
+        self.name = name
         self._debug_info = None
         self._ismrecord = False
 
@@ -141,7 +142,7 @@ class RecordTypes:
     # num is a nonnegative integer between 0 and 255,
     @staticmethod
     def _byte_to_bits(num):
-        return [(num >> i) & 1 for i in range(7, -1, -1)]
+        return [(num >> i) & 1 for i in range(8)]
 
     @staticmethod
     def _bytes_to_bits(source):
@@ -283,8 +284,8 @@ class RecordTypes:
         def __init__(self, **records):
             self.records = records
 
-        def __call__(self, source, root_record=None):
-            return process_meta_record(source, self)
+        def __call__(self, source, root_record=None, **kwargs):
+            return process_meta_record(source, self, **kwargs)
 
     # NOTE: THe common idiom of creating lists from a multiplied list
     # of records isn't too harsh on memory. It doesn't deep copy those
@@ -307,8 +308,8 @@ class RecordTypes:
         def __init__(self, record_list):
             self.record_list = record_list
 
-        def __call__(self, source):
-            return process_meta_record(source, self)
+        def __call__(self, source, **kwargs):
+            return process_meta_record(source, self, **kwargs)
 
 # Mutates original tree.
 # TODO: Changes from Node._print are applicable here, too.
@@ -330,7 +331,7 @@ def tree_to_values(tree):
 # process_meta_record internally.
 # TODO: Give meta records starts and ends, too, based on the start of
 # their first child and end of their last child.
-def process_meta_record(source, meta_record):
+def process_meta_record(source, meta_record, start=0):
     """
     Uses a meta-record to interpret a source of bytes. Behaves
     somewhat like a record function, returning an interpreted value
@@ -351,7 +352,6 @@ def process_meta_record(source, meta_record):
     """
     root = Node(None)
     remaining_source = source
-    start = 0
 
     # elements of node_stack will contain an old tree node and its
     # corresponding new tree node. And the node's name if it has one.
@@ -366,7 +366,7 @@ def process_meta_record(source, meta_record):
             new._ismrecord = True
             length = len(node_stack)
             for k, v in old_children:
-                new_node = Node(None, parent=new)
+                new_node = Node(None, parent=new, name=k)
                 node_stack.insert(length, [v, new_node, k])
                 new.add(new_node, name=k)
         elif isinstance(old, RecordTypes.List):
@@ -374,7 +374,7 @@ def process_meta_record(source, meta_record):
             new._ismrecord = True
             length = len(node_stack)
             for i, child in enumerate(old.record_list):
-                new_node = Node(None, parent=new)
+                new_node = Node(None, parent=new, name=i)
                 node_stack.insert(length, [child, new_node, i])
                 new.add(new_node, name=None)
         elif isinstance(old, RecordTypes.If):
@@ -386,23 +386,39 @@ def process_meta_record(source, meta_record):
             # where series/list were treated as record functions,
             # could be passed source to consume it, and returned
             # remaining source.
-            orig_length = len(remaining_source)
-            value, remaining_source = old(
-                    remaining_source, root_record=root, current=new.p)
-            if isinstance(value, Node):
-                value.parent = new.p
-                new.p.add(value, name)
-                new = value
-            else:
-                new.value = value
+            try:
+                orig_length = len(remaining_source)
+                value, remaining_source = old(
+                        remaining_source, root_record=root, current=new.p)
+                # In case the record function uses metarecords inside of
+                # it, try to play nice with that case.
+                if isinstance(value, Node):
+                    value.parent = new.p
+                    new.p.add(value, name)
+                    new = value
+                else:
+                    new.value = value
 
-            new_length = len(remaining_source)
-            consumed_bytes = orig_length - new_length
+                new_length = len(remaining_source)
+                consumed_bytes = orig_length - new_length
 
-            new._debug_info = {'start' : start, 'end' : start + consumed_bytes - 1}
-            start += consumed_bytes
+                new._debug_info = {'start' : start, 'end' : start + consumed_bytes - 1}
+                start += consumed_bytes
+            except Exception as e:
+                names = []
+                cur = new
+                # Reversed order, as the last name should be the
+                # offending node's name, but here it's the first name.
+                while cur.p is not None:
+                    names.append(cur.name)
+                    cur = cur.p
+                names.append('/')
+                names.reverse()
+                print(f"Node '{names}', caused the following error:")
+                print(f"Bytes starting at '{start}': {bytes(remaining_source[:old.length])}")
+                raise e
 
-    return root, remaining_source
+    return root, remaining_source, start
 
 # TODO:
 # - Create an Ignore metarecord. Can take length or a record function.
