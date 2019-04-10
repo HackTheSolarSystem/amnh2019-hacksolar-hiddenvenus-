@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 from f_bidr import *
+from f_bidr_data import get_orbit_file_path as orbit
 
 def get(records, *names):
     outputs = []

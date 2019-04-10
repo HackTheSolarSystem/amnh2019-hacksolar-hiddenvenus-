@@ -1,15 +1,16 @@
 from f_bidr import logical_record, count_logical_recs, read_logical_records
+from f_bidr_data import get_orbit_file_path as orbit
 
 import numpy as np
 import imageio
 
 # NOTE: File 15 has more than one logical record. It's a series of
 # logical records.
-orb376="sample-data/FILE_15"
-orb382="/home/adam/projects/amnh2019-hacksolar-hiddenvenus/data/MG_4567/F0382_03/file_15"
-orb384="/home/adam/projects/amnh2019-hacksolar-hiddenvenus/data/MG_4567/F0384_02/file_15"
-orb386="/home/adam/projects/amnh2019-hacksolar-hiddenvenus/data/MG_4567/F0386_02/file_15"
-orb390="/home/adam/projects/amnh2019-hacksolar-hiddenvenus/data/MG_4567/F0390_02/file_15"
+orb376=orbit(376, "file_15")
+orb382=orbit(382, "file_15")
+orb384=orbit(384, "file_15")
+orb386=orbit(386, "file_15")
+orb390=orbit(390, "file_15")
 
 def multiple_orbits():
     records = []
