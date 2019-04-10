@@ -142,6 +142,7 @@ class RecordTypes:
     # num is a nonnegative integer between 0 and 255,
     @staticmethod
     def _byte_to_bits(num):
+        #return [(num >> i) & 1 for i in range(7, -1, -1)]
         return [(num >> i) & 1 for i in range(8)]
 
     @staticmethod
@@ -183,7 +184,7 @@ class RecordTypes:
             accum = accum + bit * 2 ** power
             power = power + 1
 
-        return 0.1 + accum
+        return 0.5 + accum
 
     # NOTE: These are not IEEE 754 floating point numbers. Their
     # format is different, as is the bias on the exponent (-128,

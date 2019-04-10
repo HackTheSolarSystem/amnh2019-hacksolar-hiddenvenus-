@@ -67,6 +67,94 @@ class IntegersTests(unittest.TestCase):
             the_bytes = int_to_bytes(number, 5, signed=True)
             self.assertEqual(int_record(the_bytes), (number, b''))
 
+class FloatsTests:
+    def testLibVaxSingles(self):
+        cases = [
+            (bytes.fromhex('80400000'),  float('1.000000')           ),
+            (bytes.fromhex('80C00000'),  float('-1.000000')          ),
+            (bytes.fromhex('60410000'),  float('3.500000')           ),
+            (bytes.fromhex('60C10000'),  float('-3.500000')          ),
+            (bytes.fromhex('4941D00F'),  float('3.141590')           ),
+            (bytes.fromhex('49C1D00F'),  float('-3.141590')          ),
+            (bytes.fromhex('F07DC2BD'),  float('9.9999999E+36')      ),
+            (bytes.fromhex('F0FDC2BD'),  float('-9.9999999E+36')     ),
+            (bytes.fromhex('0803EA1C'),  float('9.9999999E-38')      ),
+            (bytes.fromhex('0883EA1C'),  float('-9.9999999E-38')     ),
+            (bytes.fromhex('9E405206'),  float('1.234568')           ),
+            (bytes.fromhex('9EC05206'),  float('-1.234568')          ),
+        ]
+
+        for binary, expected in cases:
+            actual = R.Float('single')(binary)
+            self.assertEqual(expected, actual)
+
+    def testLibVaxDoubles(self):
+        cases = [
+            (bytes.fromhex('8040000000000000'),  float('1.000000000000000')           ),
+            (bytes.fromhex('80C0000000000000'),  float('-1.000000000000000')          ),
+            (bytes.fromhex('6041000000000000'),  float('3.500000000000000')           ),
+            (bytes.fromhex('60C1000000000000'),  float('-3.500000000000000')          ),
+            (bytes.fromhex('4941DA0F21A2BE68'),  float('3.141592653589793')           ),
+            (bytes.fromhex('49C1DA0F21A2BE68'),  float('-3.141592653589793')          ),
+            (bytes.fromhex('F07DC2BDBB1ADB48'),  float('1.0000000000000000E+37')      ),
+            (bytes.fromhex('F0FDC2BDBB1ADB48'),  float('-1.0000000000000000E+37')     ),
+            (bytes.fromhex('0803EA1C5414755C'),  float('9.9999999999999999E-38')      ),
+            (bytes.fromhex('0883EA1C5414755C'),  float('-9.9999999999999999E-38')     ),
+            (bytes.fromhex('9E4052066214E7CE'),  float('1.234567890123450')           ),
+            (bytes.fromhex('9EC052066214E7CE'),  float('-1.234567890123450')          ),
+        ]
+
+        for binary, expected in cases:
+            actual = R.Float('single')(binary)
+            self.assertEqual(expected, actual)
+
+
+ 
+
+ 
+
+ 
+ 
+  
+ 
+  
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class MetaRecordBasicTests(unittest.TestCase):
     def testSeveralRecords(self):
         source = memoryview(bytes([
@@ -97,7 +185,7 @@ class MetaRecordBasicTests(unittest.TestCase):
             *int_to_bytes(2, 1),
             ]))
 
-        interpretation, remaining_source = process_meta_record(
+        interpretation, remaining_source, _ = process_meta_record(
                 source, record)
 
         self.assertEqual(interpretation['one'].value, 0)
@@ -114,7 +202,7 @@ class MetaRecordBasicTests(unittest.TestCase):
             *int_to_bytes(2, 1),
             ]))
 
-        interpretation, remaining_source = process_meta_record(
+        interpretation, remaining_source, _ = process_meta_record(
                 source, record)
 
         self.assertEqual(interpretation['one'].value, 0)
@@ -133,7 +221,7 @@ class MetaRecordBasicTests(unittest.TestCase):
             ]))
 
 
-        interpretation, remaining_source = process_meta_record(
+        interpretation, remaining_source, _ = process_meta_record(
                 source, record)
 
         self.assertEqual(interpretation['one'].value, 0)
@@ -413,7 +501,7 @@ class LargeMetaRecordTests(unittest.TestCase):
         }
 
 
-        interpretation, remaining_source = process_meta_record(data, record)
+        interpretation, remaining_source, _ = process_meta_record(data, record)
         interpretation = tree_to_values(interpretation)
 
         self.assertEqual(len(remaining_source), 1)
@@ -532,7 +620,7 @@ class LargeMetaRecordTests(unittest.TestCase):
         }
 
         record = LargeMetaRecordTests.logical_record_12_17
-        interpretation, remaining_source = process_meta_record(data, record)
+        interpretation, remaining_source, _ = process_meta_record(data, record)
         interpretation = tree_to_values(interpretation)
 
         self.assertEqual(expected_interpretation, interpretation)
@@ -593,7 +681,7 @@ class LargeMetaRecordTests(unittest.TestCase):
         }
 
         record = LargeMetaRecordTests.logical_record_12_17
-        interpretation, remaining_source = process_meta_record(data, record)
+        interpretation, remaining_source, _ = process_meta_record(data, record)
         print(interpretation)
         interpretation = tree_to_values(interpretation)
 
