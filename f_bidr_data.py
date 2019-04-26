@@ -11,6 +11,7 @@ import shutil
 # I don't wanna think about paths or downloads. I want python to
 # detect if a file or orbit is not there and download the information
 # for me.
+
 with open('record-order') as f:
     orbits = {}
     for line in f:
@@ -33,6 +34,9 @@ def gen_url(number, version, filename):
 def gen_local_path(number, version, filename):
     return os.path.join(data_root, orbits[number][version - 1], filename.upper())
 
+# For the following functions, the version parameter should be the
+# same as is on the directory. For instance F0376_3 has version 3.
+
 def file_exists(number, version, filename):
     return os.path.exists(gen_local_path(number, version, filename))
 
@@ -40,12 +44,17 @@ def download_orbit_file(number, version, filename):
     """Fetch particular file from internet mirror."""
     url = gen_url(number, version, filename)
     path = gen_local_path(number, version, filename)
-    try:
+    #print(url)
+    #print(path)
+    try: 
         local_file, headers = urllib.request.urlretrieve(url)
+        shutil.move(local_file, path)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            raise ValueError(f"File '{url}' does not exist.")
     except urllib.error.URLError as e:
         print("Something likely wrong with internet connection.")
         raise e
-    shutil.move(local_file, path)
 
 def get_orbit_file_path(number, filename, version=None):
     """Download file if need be and return file's path on local machine."""
@@ -60,3 +69,13 @@ def get_orbit_file_path(number, filename, version=None):
     if not file_exists(number, version, filename):
         download_orbit_file(number, version, filename)
     return local_path
+
+def download_all_orbit_files(filename):
+    # I'm not raising any errors here because some label files aren't
+    # present in every fbidr. There's no way of knowing ahead of time.
+    for orbit in orbits.keys():
+        for version in range(len(orbits[orbit])):
+            try:
+                get_orbit_file_path(orbit, filename, version + 1)
+            except ValueError as e:
+                print(f'{orbits[orbit][version]}: {e.args[0]}')

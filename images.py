@@ -6,11 +6,8 @@ import imageio
 
 # NOTE: File 15 has more than one logical record. It's a series of
 # logical records.
-orb376=orbit(376, "file_15")
-orb382=orbit(382, "file_15")
-orb384=orbit(384, "file_15")
-orb386=orbit(386, "file_15")
-orb390=orbit(390, "file_15")
+selected_orbits = [376, 382, 384, 386, 390]
+selected_orbits = [orbit(i, "file_15") for i in selected_orbits]
 
 def multiple_orbits():
     records = []
@@ -60,6 +57,11 @@ def process_file(filepath, savepath, slices=3):
         start = end
         count += 1
 
+# TODO: Some files, such as MG_4002/F0382_4/FILE_13, start from a low
+# line offset and proceed to a larger one. The final product shows
+# slices that are out of order. The image "top" (it's a slice with
+# rounded end suggesting the edge of the planet), is at the least line
+# offset, which is negative.
 # Earlier rows are the top of the image.
 # Earlier columns are the left of the image.
 # pixels earlier in a data row have a smaller pixel offset.

@@ -5,13 +5,11 @@ from f_bidr_data import get_orbit_file_path as orbit
 def get(records, *names):
     outputs = []
     for name in names:
-        if isinstance(name, (str, int)):
+        if callable(name):
+            outputs.append([name(r) for r in records])
+        else:
             outputs.append([r[name] for r in records])
             #return [r[name] for r in records]
-        elif callable(name):
-            outputs.append([name(r) for r in records])
-            #return [name(r) for r in records]
-
     if len(names) == 1:
         return outputs[0]
     else:

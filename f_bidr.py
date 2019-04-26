@@ -1,7 +1,6 @@
 from attrs_structs import RecordTypes as R
 from attrs_structs import tree_to_values
 
-
 tdb_seconds = R.Float('double')
 wall_clock_time = R.FixedLengthString(19)
 vax_int = R.Integer(4)
