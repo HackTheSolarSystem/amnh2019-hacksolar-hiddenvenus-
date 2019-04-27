@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.ma as ma
 import imageio
+import itertools
 
 from f_bidr import read_logical_records
 import f_bidr
@@ -15,27 +16,20 @@ selected_orbits = [376, 382, 384, 386, 390]
 selected_orbits = [orbit(i, "file_15") for i in selected_orbits]
 
 def multiple_orbits():
-    records = []
+    selected_orbits = [orbit(i, 'file_15') 
+                       for i in [376, 382, 384, 386, 390]]
+    data = [read_logical_records(o, 250) for o in selected_orbits]
+    origin_lons = [o[0]['proj_origin_lon'] for o in data]
+    least_lon = min(origin_lons)
+    pixel_offsets = [round((l - least_lon) / 7.1016e-4) 
+                     for l in origin_lons]
+    print(origin_lons)
+    print(pixel_offsets)
+    for image_data, offset in zip(data, pixel_offsets):
+        for record in image_data:
+            record['reference_offset_pixels'] += offset
 
-    with open(orb376, 'rb') as f:
-        contents = f.read()
-        records += read_logical_records(contents, 250)
-
-    with open(orb382, 'rb') as f:
-        contents = f.read()
-        records += read_logical_records(contents, 250)
-
-    with open(orb384, 'rb') as f:
-        contents = f.read()
-        records += read_logical_records(contents, 250)
-
-    with open(orb386, 'rb') as f:
-        contents = f.read()
-        records += read_logical_records(contents, 250)
-
-    with open(orb390, 'rb') as f:
-        contents = f.read()
-        records += read_logical_records(contents, 250)
+    records = list(itertools.chain.from_iterable(data))
 
     biggun = image_stitch(records, None, None)
     return biggun, records
@@ -73,17 +67,30 @@ def make_mask(offset, pointer, length):
 # slices that are out of order. The image "top" (it's a slice with
 # rounded end suggesting the edge of the planet), is at the least line
 # offset, which is negative.
-# Earlier rows are the top of the image.
-# Earlier columns are the left of the image.
-# pixels earlier in a data row have a smaller pixel offset.
-# pixels later in a data have a later pixel offset.
-# Earlier records have larger line offsets.
-# Later records have smaller line offsets.
-# When concatenating arrays, earlier arrays have lower indexes.
-# So the 1st row of the 1st array is the top row of the image.
-# And thus the 1st line of the 1st record is the top row of the image.
-# The last line of the last record is the bottom row of the image.
-# The image needs to be tall enough to accomodate:
+
+# Notes on array/image geometry:
+# For a numpy array:
+# - Earlier rows are the top of the image.
+# - Earlier columns are the left of the image.
+#
+# For BIDR records:
+# - pixels earlier in a data row have a smaller pixel offset.
+# - pixels later in a logical record have a later pixel offset.
+# - Earlier records have larger line offsets. (for file_15's)
+# - Later records have smaller line offsets. (for file_15's)
+#
+# For file_15's, the satellite travels from north to south, and
+# somewhat east over time. Higher line offsets mean north, lower
+# offsets mean south.
+# 
+# - The image arrays are created from the pixel rows in the logical
+#   records. Each individual image array contains rows in the order
+#   that the logical record contains them.
+# - When concatenating arrays, earlier arrays have lower indexes.  So
+#   the 1st row of the 1st array is the top row of the image.  And
+#   thus the 1st line of the 1st record is the top row of the image.
+#   The last line of the last record is the bottom row of the image.
+#   The image needs to be tall enough to accomodate:
 #   - max of:
 #       - height of 1st record
 #       - offset range
