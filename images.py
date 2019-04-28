@@ -198,12 +198,8 @@ def image_stitch(records, sort_by, save_path=None):
         # line offset 0, I added max_lines.
         top = -line_shift + max_lines
         #master_picture[top:top + height, left:left + width] = image
-        # Changing this a little so that if image pixels are 0 and the
-        # master picture is non-zero in that location, I keep the
-        # non-zero value.
-        new0 = image == 0
         old_region = master_picture[top:top + height, left:left + width]
-        master_picture[top:top + height, left:left + width] = old_region * new0 + image * (~new0)
+        master_picture[top:top + height, left:left + width] = np.max(np.stack([old_region, image], axis=1), axis=1)
     return master_picture
 
 # Image questions:
