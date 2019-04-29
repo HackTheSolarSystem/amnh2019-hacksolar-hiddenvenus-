@@ -24,16 +24,16 @@ def multiple_orbits(pixel_offsets):
     selected_orbits = [orbit(i, 'file_15') for i in [382, 384]]
     data = [read_logical_records(o, 100) for o in selected_orbits]
     origin_lons = [o[0]['proj_origin_lon'] for o in data]
-    #origin_pixels = [math.pi / 180 * l * 6051.8 for l in origin_lons]
-    #least_pixels = min(origin_pixels)
+    origin_pixels = [math.pi / 180 * (l - 180) * 6051.8e3 / 75 for l in origin_lons]
+    least_pixels = min(origin_pixels)
     #pixel_offsets = [0, 20, 40, 60]
-    #pixel_offsets = [round(p - least_pixels) for p in origin_pixels]
+    pixel_offsets = [round(p - least_pixels) for p in origin_pixels]
     #least_lon = min(origin_lons)
     #pixel_offsets = [round((l - least_lon) / 7.1016e-4) 
                      #for l in origin_lons]
     #pixel_offsets = [0, 100]
     print(origin_lons)
-    #print(pixel_offsets)
+    print(pixel_offsets)
     for image_data, offset in zip(data, pixel_offsets):
         for record in image_data:
             record['reference_offset_pixels'] += offset
