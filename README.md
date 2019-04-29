@@ -57,15 +57,22 @@ looking for tools that could help us.
 ## Problems: what are we trying to overcome?
 
 The Magellan data was collected between about 1991 and 1993. The
-mission happened before later tools for sterogrammetry (getting
+mission happened before later tools for stereogrammetry (getting
 elevation data from a pair of images from different perspectives of
 the same region) were developed. So the data isn't immediately usable
-with known tools for performing stereogrammetry.
+with known tools for performing stereogrammetry. Common
+stereogrammetry tools aren't compatible with it for futher reasons:
+this is radar data, not optical data and must be handled a little
+differently; and most tools can't handle planetary data. TODO: Explain
+this a little better; is it the scale of planetary data that's the
+problem? What's the difference briefly b/w photogrammetry and
+radargrammetry? Real brief.
 
 Magellan carried an altimeter on board, but the resolution of the
 height data is very large (on the order of 10km in between each
 sample), and is not always reliable. In mountainous regions, errors in
-altitude can be as large as a kilometer.
+altitude can be as large as a kilometer.  
+TODO: Source.
 
 Lastly, the actual images are not optical images; they are not created
 by reflected visible light from a surface. This was done for different
@@ -94,8 +101,8 @@ Each pixel represents $75m^2$ of Venus' surface. They're 75m wide and
 tall. A radar on Magellan emitted radiation from a small dish and
 captured some of the radiation back a small amount of time later. The
 intensity of the pixel is the intensity of the reflected radiation.
-What precisely this means we can't quite say. It's easier to start off
-with what it *isn't*.
+What precisely this means we can't quite say yet. More reading to do.
+It's easier to start off with what it *isn't*.
 
 - It's not brightness of the surface. The radiation isn't visible and
   the radar wasn't affected by visible light (we assume).
@@ -105,7 +112,9 @@ What the intensities tell us is how capable a given patch of land was
 at reflecting the radiation back toward the satellite. Chapter 5 of
 the Magellan Guide goes into more detail about this, but here's a
 summary. First, an image describing various terms on satellite
-orientation toward the surface. 
+orientation toward the surface. The *SAR* is the radar dish on the
+magellan satellite. If I talk about satellite orientation, I'm really
+talking about the orientation of this dish.
 
 ![Demonstration of satellite orientation terms](readme-images/satellite-info.png)
 
@@ -169,7 +178,8 @@ Left to Explain:
 - Maybe the behavior of the satllite? How it spun around the planet,
   how it recorded radar data. A diagram of the orbit inclincation
   angle could help, and the rotation direction of Venus. I drew one of
-  those already.
+  those already. This could extend into a discussion on doppler/range
+  because that may be important to the work anyway.
 - Cycles, what was gained from each cycle.
 - How we piece together pieces of an image.
 - Binary format of the data? Eh... 
@@ -183,4 +193,8 @@ Left to Explain:
   because there's lots of stuff that looks like it should be fine and
   makes the project a cinch, but there's some sort of trouble with it.
   Inaccurate, or produced poorly or something like that.
+    - Altimeter inaccuracy
+    - Improved ephemeris data, where to get it how to use it
 - Maybe include a list of sources, like a report.
+- The thursts, man! The *thrusts*! What are we currently researching
+  in a little more detail.
