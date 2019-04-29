@@ -181,7 +181,7 @@ some rules:
 
 - A record is a function that takes a bytes object and returns two
   values: the interpretation of consumed bytes, and the remaining
-  unconsumed bytes, or `None` if no bytes were unconsumed.
+  unconsumed bytes, or `None` if no bytes were consumed.
 - A when referring to a record's record_length, it refers to any of
   the above ways to get a record's length.
 - If a record has no record_length, then it is as long as the source
@@ -236,10 +236,10 @@ this can be done in a way where composed records are independent of
 one another. That's now how these binary formats work. Later records
 depend on the interpreted values of earlier records.
 
-- Contiguous series of records is one form of dependence. The
-  composition function should understand how many bytes each record
-  consumes, so that it knows where the next record should start,
-  assuming there's no blank space.
+- Contiguous series of records is one form of dependence of later
+  records on prior records. The composition function should understand
+  how many bytes each record consumes, so that it knows where the next
+  record should start, assuming there's no blank space.
 - Having the total length of a record be based on the binary data it
   will read is another (page 3-11 is an example: logical records in an
   F-BIDR file have a length that's written in the logical record
@@ -616,6 +616,11 @@ recursively. One node at a time. This is done so that the root record
 and current node are always available when we're processing the next
 record.
 
+Building the tree of records is basically copying the structure of a
+metarecord (like a series) and treating that as describing a tree. By
+treating the original metarecord like a tree, we can copy that
+iteratively by doing an iterative preorder traversal.
+
 There's a few things I haven't accounted for:
 
 - Cooperation b/w custom record functions and meta-records. They work
@@ -627,3 +632,20 @@ There's a few things I haven't accounted for:
     - If a custom returns a dict or list, that's a bit problematic.
       Nodes whose values are lists or dicts are treated as
       meta-records, and that falls apart with custom records.
+
+Later Notes (4/10/19)
+=====================
+
+Things have solidified for now.
+
+The 'unknown' length is kinda useless. I've never really made use of
+the feature, I was able to get away without it. I didn't have to use
+reserved names for a record's remaining length. I just fudged it using
+an `If` metarecord and referring to the `remaining_length` field,
+adjusting the value if necessary.
+
+If I had to do the length thing now, I could maybe make a metarecord
+for it. The function would be "read until --- byte". The referred
+record contains a length, the read-until byte is the byte location
+after the referred record ends + the length of bytes to read (value of
+the referred record).

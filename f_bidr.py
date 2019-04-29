@@ -1,6 +1,13 @@
 from attrs_structs import RecordTypes as R
 from attrs_structs import tree_to_values
 
+# TODO: 
+# - Translate the times into python/earth times.
+# - Build an index of longitudes + latitudes of the reference points
+#   of each logical record in an image. At least for file 15. This
+#   would allow you to focus on an arbitrary longitude latitude range
+#   without having to worry about which orbit(s) cover it up front.
+#   Helps keep storage use low, too.
 tdb_seconds = R.Float('double')
 wall_clock_time = R.FixedLengthString(19)
 vax_int = R.Integer(4)

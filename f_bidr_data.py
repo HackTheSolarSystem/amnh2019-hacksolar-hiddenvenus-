@@ -12,6 +12,10 @@ import shutil
 # detect if a file or orbit is not there and download the information
 # for me.
 
+# TODO:
+# - Consider prioritizing the latest version orbit that's currently on
+#   the computer over downloading the latest orbit version.
+# - Figure out what those versions actually mean. Is later better?
 with open('record-order') as f:
     orbits = {}
     for line in f:
@@ -26,6 +30,9 @@ with open('record-order') as f:
 
 f_bidr_root = "http://pds-geosciences.wustl.edu/mgn/mgn-v-rdrs-5-bidr-full-res-v1/"
 project_root = os.path.dirname(os.path.abspath(__file__))
+# If you want to change where the data is stored, you can do that
+# here, relative to the project root. Or just set this to any desired
+# path.
 data_root = os.path.join(project_root, 'data')
 
 def gen_url(number, version, filename):
@@ -44,8 +51,6 @@ def download_orbit_file(number, version, filename):
     """Fetch particular file from internet mirror."""
     url = gen_url(number, version, filename)
     path = gen_local_path(number, version, filename)
-    #print(url)
-    #print(path)
     try: 
         local_file, headers = urllib.request.urlretrieve(url)
         shutil.move(local_file, path)
