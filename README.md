@@ -151,7 +151,7 @@ thought it was), but *flat ground* from a high incidence angle
 ($50\deg$).
 
 ![Comparison of incidence angle effects at California
-Mountains](readme-images/incidence-angle-land-demo.png)
+Mountains](readme-images/incidence-angle-land-effects.png)
 
 - The F-BIDR is an orbit. It's the collection of 20 files plus labels
   and shit. There's **5933** F-BIDRs for the magellan mission, total.
