@@ -123,6 +123,15 @@ talking about the orientation of this dish.
 
 ![Demonstration of satellite orientation terms](readme-images/satellite-info.png)
 
+A note: incidence angle and look angle are *not* the same. On the
+radar swath is a line that crosses it, along with a squiggly. The line
+represents an assumed reference surface, and the squiggly is the
+actual surface. The reference surface is flat in the picture, but it
+doesn't have to be. And actual surfaces often aren't flat. The
+picture-in-picture insert describes this well: there's the *local*
+incidence angle, which is the actual incidence angle the radiation
+makes with the actual (squiggly) ground.
+
 There's a few things that affect how capable a patch of land is at
 reflecting radiation: the *incidence angle* (the angle between the
 radiation and the surface struck by it), the roughness of the ground,
@@ -144,7 +153,7 @@ is large, then the flat ground will show up dark (radar-dark).
 The more rough the ground, the less intensity will shoot right back at
 the radar in any one direction because the radiation will be spread
 out in different directions; however regardless of the incidence
-angle, light is more likely to go back to the radar than miss it. The
+angle, radiation is more likely to go back to the radar than miss it. The
 following graph shows this in more detail. Higher radar backscatter
 means higher pixel intensity.
 
@@ -154,17 +163,6 @@ surfaces](readme-images/incidence-angle-reflection-graph.png)
 Notice that the graph for rough ground changes less with incidence
 angle while the graph for flat ground changes a lot with incidence
 angle.
-
-Now that we've seen the interplay of incidence angle and roughness,
-it is important to revisit the first photo explaining the radar's
-orientation to the ground it imaged. In the radar swath is a flat line
-with a squiggly line around it; the flat line is a *reference
-surface*. An assumed flat surface of the planet. The squiggly
-represents the actual surface. Now, look at the little
-picture-in-picture section of the figure. It shows you that the actual
-incidence angle depends on the surface being imaged. So the
-reflectiveness of the surface depends on more than just roughness, but
-also its slope.
 
 Here's two radar images of some mountains in California which display
 the difference between different incidence angles. They're of the same
