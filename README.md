@@ -4,8 +4,13 @@
 
 ### Created By Team Team
 
-- Jennifer Shin <https://github.com/jennshin>
-- Adam Ibrahim <https://github.com/beelzebielsk>
+- Jennifer Shin 
+  <https://www.linkedin.com/in/jennshin>
+  <https://github.com/jennshin>
+
+- Adam Ibrahim 
+  <https://www.linkedin.com/in/adam-ibrahim/>
+  <https://github.com/beelzebielsk>
 
 Status Report:
 
