@@ -12,7 +12,10 @@
   - <https://www.linkedin.com/in/adam-ibrahim/>
   - <https://github.com/beelzebielsk>
 
-Status Report:
+[Our
+website](https://hackthesolarsystem.github.io/amnh2019-hacksolar-hiddenvenus-/)
+
+### Status Report:
 
 We can read in the binary data from a single orbit from the Magellan
 Mission and view it as greyscale images.
@@ -121,7 +124,7 @@ orientation toward the surface. The *SAR* is the radar dish on the
 magellan satellite. If I talk about satellite orientation, I'm really
 talking about the orientation of this dish.
 
-![Demonstration of satellite orientation terms](readme-images/satellite-info.png)
+![Demonstration of satellite orientation terms](docs/readme-images/satellite-info.png)
 
 A note: incidence angle and look angle are *not* the same. On the
 radar swath is a line that crosses it, along with a squiggly. The line
@@ -142,7 +145,7 @@ the explanation is less straightforward; incidence angle and roughness
 have an interplay, as shown in the following 2 figures:
 
 ![Demonstration of reflectivity of 2 different
-surfaces](readme-images/incidence-angle-land-demo.png)
+surfaces](docs/readme-images/incidence-angle-land-demo.png)
 
 In the very top image, the surface is flat so it acts like a mirror.
 Radiation hits it and then bounces away. If the incidence angle is
@@ -158,7 +161,7 @@ following graph shows this in more detail. Higher radar backscatter
 means higher pixel intensity.
 
 ![Backscatter vs incidence angle for different
-surfaces](readme-images/incidence-angle-reflection-graph.png)
+surfaces](docs/readme-images/incidence-angle-reflection-graph.png)
 
 Notice that the graph for rough ground changes less with incidence
 angle while the graph for flat ground changes a lot with incidence
@@ -174,7 +177,7 @@ regions. The pictures are basically the same scale and width and
 height.
 
 ![Comparison of incidence angle effects at California
-Mountains](readme-images/incidence-angle-land-effects.png)
+Mountains](docs/readme-images/incidence-angle-land-effects.png)
 
 Left to Explain:
 
