@@ -181,19 +181,21 @@ Mountains](docs/readme-images/incidence-angle-land-effects.png)
 
 Left to Explain:
 
+- Other sections:
+    - How we piece together pieces of an image.
+    - Magellan Data particulars
+        - Cycles, what was gained from each cycle.
+        - Binary format of the data.
+        - The format of the files, at least. And their role. I could
+          at least point them to a good page in the FBIDR SIS.
+    - Explanation of image metadata, important pieces. Explanation of
+      the different coordinate systems (sinusoidal pixel/line and
+      spherical lat/lon).
 - Maybe the behavior of the satllite? How it spun around the planet,
   how it recorded radar data. A diagram of the orbit inclincation
   angle could help, and the rotation direction of Venus. I drew one of
   those already. This could extend into a discussion on doppler/range
   because that may be important to the work anyway.
-- Cycles, what was gained from each cycle.
-- How we piece together pieces of an image.
-- Binary format of the data? Eh... 
-- The format of the files, at least. And their role. I could at least
-  point them to a good page in the FBIDR SIS.
-- Explanation of image metadata, important pieces. Explanation of the
-  different coordinate systems (sinusoidal pixel/line and spherical
-  lat/lon).
 - What sources of image data are available and what do they provide?
   Why work with the original? This is a bit of a pitfall for a newbie,
   because there's lots of stuff that looks like it should be fine and
