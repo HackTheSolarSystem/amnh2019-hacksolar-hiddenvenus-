@@ -3,3 +3,4 @@ extra-papers/
 sample-data/
 sample-image.png
 .venv
+compiled/
