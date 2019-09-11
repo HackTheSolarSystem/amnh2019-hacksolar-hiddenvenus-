@@ -6,11 +6,12 @@
          pollen/template
          txexpr)
 (provide (all-defined-out))
+(define (rel-root path) (string-append "/amnh2019-hacksolar-hiddenvenus-" path))
 
 (define (code . elements)
  (apply @ `("`" ,@elements "`")))
 (define (image-path path)
-  (~a "/docs/readme-images/" path))
+  (rel-root (~a "/docs/readme-images/" path)))
 (define (paper . elements) 
   (cond 
     [(symbol? (first elements))
