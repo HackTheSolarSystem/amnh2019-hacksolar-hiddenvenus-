@@ -1,11 +1,11 @@
 #lang pollen
 
-index.html
-intro.html
-◊details.html{
-    details/image-stitching.html
-    details/magellan-mission-particulars.html
-    details/metadata.html
-    details/satellite.html
-    details/validation.html
+docs/index.html
+docs/intro.html
+◊docs/details.html{
+    docs/details/image-stitching.html
+    docs/details/magellan-mission-particulars.html
+    docs/details/metadata.html
+    docs/details/satellite.html
+    docs/details/validation.html
 }

@@ -11,15 +11,15 @@
         <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
         <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     ◊(->html (meta #:charset "UTF-8"))
-    ◊(->html (link #:rel "stylesheet" #:type "text/css" #:href "/style.css"))
+    ◊(->html (link #:rel "stylesheet" #:type "text/css" #:href "/docs/style.css"))
     </head>
     ◊(->html
             `(body 
                 (nav ((id "site-nav"))
-                 (a ((href "/index.html")) "Index") 
+                 (a ((href "/docs/index.html")) "Index") 
                  (span ((class "nav-spacer")) "|" )
-                 (a ((href "/intro.html")) "Introduction to Project")
+                 (a ((href "/docs/intro.html")) "Introduction to Project")
                  (span ((class "nav-spacer")) "|" )
-                 (a ((href "/details/satellite.html")) "How Magellan Orbited Venus"))
+                 (a ((href "/docs/details/satellite.html")) "How Magellan Orbited Venus"))
                 ,@(get-elements doc)))
 </html>

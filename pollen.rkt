@@ -10,7 +10,7 @@
 (define (code . elements)
  (apply @ `("`" ,@elements "`")))
 (define (image-path path)
-  (~a "/readme-images/" path))
+  (~a "/docs/readme-images/" path))
 (define (paper . elements) 
   (cond 
     [(symbol? (first elements))
@@ -40,8 +40,10 @@
   (apply @ `("$" ,@elements "$")))
 (define (ignore . elements)
   (@ ""))
+; These are entirely semantic, but won't get ignored in the output.
 (define (just-mark . elements)
   (apply @ elements))
+; These are only for the editor to see.
 (define todo ignore)
 ; ns: needs source
 (define ns just-mark)
