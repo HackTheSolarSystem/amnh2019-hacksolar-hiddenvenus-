@@ -1,6 +1,6 @@
 #lang pollen
 
-docs/index.html
+index.html
 docs/intro.html
 ◊docs/details.html{
     docs/details/image-stitching.html

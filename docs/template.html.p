@@ -16,7 +16,7 @@
     ◊(->html
             `(body 
                 (nav ((id "site-nav"))
-                 (a ((href "/docs/index.html")) "Index") 
+                 (a ((href "/index.html")) "Index") 
                  (span ((class "nav-spacer")) "|" )
                  (a ((href "/docs/intro.html")) "Introduction to Project")
                  (span ((class "nav-spacer")) "|" )
