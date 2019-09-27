@@ -3,6 +3,7 @@
 index.html
 docs/intro.html
 ◊docs/details.html{
+    docs/details/noodle-overview.html
     docs/details/image-stitching.html
     docs/details/magellan-mission-particulars.html
     docs/details/metadata.html

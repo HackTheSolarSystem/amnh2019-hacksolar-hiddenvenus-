@@ -141,7 +141,8 @@ isn't immediately usable with known tools for performing
 stereogrammetry. Common stereogrammetry tools aren't compatible with
 it for futher reasons: this is radar data, not optical data and must
 be handled a little differently; and most tools can't handle planetary
-data.  ◊todo{Explain this a little better; is it the scale of
+data.  
+◊todo{Explain this a little better; is it the scale of
 planetary data that's the problem? What's the difference briefly b/w
 photogrammetry and radargrammetry? Real brief.}
 
@@ -260,7 +261,7 @@ Here's two radar images of some mountains in California which display
 the difference between different incidence angles. They're of the same
 region; the dark bottom of the top image is not the night sky (we
 thought it was for a moment), but *flat ground* from a high incidence
-angle (◊${50^\circ}). There are bright dots in the dark region of the top
+angle (◊deg{50}). There are bright dots in the dark region of the top
 photo; look for them in the bottom photo to be able to compare the two
 regions. The pictures are basically the same scale and width and
 height.

@@ -14,7 +14,6 @@ Venus](https://github.com/amnh/HackTheSolarSystem/wiki/The-Hidden-Face-of-Venus)
 
 # Links
 
-- [Our website](https://hackthesolarsystem.github.io/amnh2019-hacksolar-hiddenvenus-/)
 - [Our Repository](https://github.com/HackTheSolarSystem/amnh2019-hacksolar-hiddenvenus-)
 
 # What are we doing?
@@ -94,7 +93,6 @@ Things Coming Soon!
         - Explain how the noodle image (not stitching) is generated.
         - Explain the naming of the BIDRs: orbit no and version, so
         you can reference them as such later on.
-    - How we piece together pieces of an image.
     - Magellan Data particulars
         - Cycles, what was gained from each cycle.
         - Binary format of the data.
