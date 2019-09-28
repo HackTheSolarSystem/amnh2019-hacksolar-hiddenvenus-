@@ -1,8 +1,12 @@
-## Lotta Research
+This hackathon project addressed [The Hidden Face of
+Venus](https://github.com/amnh/HackTheSolarSystem/wiki/The-Hidden-Face-of-Venus)
+from the AMNH "Hack the Solar System" hackathon.
 
-### Adressing [The Hidden Face of Venus](https://github.com/amnh/HackTheSolarSystem/wiki/The-Hidden-Face-of-Venus)
+See [Our
+website](https://hackthesolarsystem.github.io/amnh2019-hacksolar-hiddenvenus-/)
+for more details.
 
-### Created By Team Team
+# Project Members
 
 - Jennifer Shin 
   - <https://www.linkedin.com/in/jennshin>
@@ -12,10 +16,7 @@
   - <https://www.linkedin.com/in/adam-ibrahim/>
   - <https://github.com/beelzebielsk>
 
-[Our
-website](https://hackthesolarsystem.github.io/amnh2019-hacksolar-hiddenvenus-/)
-
-### Status Report:
+# Status Report:
 
 We can read in the binary data from a single orbit from the Magellan
 Mission and view it as greyscale images.
