@@ -1,9 +1,13 @@
-from f_bidr import logical_record, count_logical_recs, read_logical_records
-from f_bidr_data import get_orbit_file_path as orbit
-
 import numpy as np
 import numpy.ma as ma
 import imageio
+
+from f_bidr import read_logical_records
+import f_bidr
+from f_bidr_data import get_orbit_file_path as orbit
+
+
+f_bidr.build_mask = True
 
 # NOTE: File 15 has more than one logical record. It's a series of
 # logical records.
@@ -141,14 +145,7 @@ def image_stitch(records, sort_by, save_path=None):
     master_picture = np.zeros((max_height, max_width), dtype=np.uint8)
     record_num = 0
     for record in records:
-        line_length = record['line_length'] - 4
-        masked_lines = [ma.array(x['line'], dtype=np.uint8, 
-                        mask=make_mask(
-                            x['offset_to_first'], x['pointer_to_last'],
-                            line_length))
-                        for x in record['data']]
-        image = ma.stack(masked_lines, axis=0)
-        #image = np.array([x['line'] for x in record['data']], dtype=np.uint8)
+        image = record['data']
         pixel_shift = record['reference_offset_pixels']
         line_shift = record['reference_offset_lines']
         # The 0th column is the pixel most to the left, thus
