@@ -1,6 +1,9 @@
 from attrs_structs import RecordTypes as R
 from attrs_structs import tree_to_values
 
+import numpy as np
+import numpy.ma as ma
+
 # TODO: 
 # - Translate the times into python/earth times.
 # - Build an index of longitudes + latitudes of the reference points
@@ -149,6 +152,16 @@ data_blocks = {
     )
 }
 
+# TODO: Don't think this works for right-look images. The pointer and
+# offset are relative to the east-most pixel for those.
+def make_mask(offset, pointer, length):
+    line = np.zeros((1, length), dtype=np.bool)
+    line[0, 0:offset] = True
+    line[0, pointer + 1:] = True
+    return line
+
+build_mask = False
+
 # Multi-look image data, not single-look. I haven't found a
 # single-look image yet.
 # Done manually for speed.
@@ -156,19 +169,31 @@ def image_data_block(source, root_record, current):
     info = root_record['secondary_header']['annotation_block']['label']
     num_lines = info['line_count'].value
     line_length = info['line_length'].value
-    lines = []
-    rest = source
+    num_pixels = line_length - 4
+    num_img_bytes = num_lines * line_length
+    rest = source[num_img_bytes:]
 
-    for i in range(num_lines):
-        line = rest[:line_length]
-        rest = rest[line_length:]
-        lines.append({
-            'offset_to_first' : R.Integer(2)(line[:2])[0],
-            'pointer_to_last' : R.Integer(2)(line[2:4])[0],
-            'line' : bytearray(line[4:]),
-        })
+    lines = np.array(
+            source[:num_img_bytes], dtype=np.uint8)
+    lines = lines.reshape((num_lines, line_length))
+    pointer_bytes, pixels = np.split(lines, [4], axis=1)
+    pointers = np.empty((num_lines, 2), dtype=np.uint16)
+    pointers[:, 0] = pointer_bytes[:, 0] + pointer_bytes[:, 1] * 256
+    pointers[:, 1] = pointer_bytes[:, 2] + pointer_bytes[:, 3] * 256
 
-    return lines, rest
+    if build_mask:
+        # This is a shortcut to transform all of the pointers into
+        # little-endian 
+        mask = np.empty((0, num_pixels), dtype=np.bool)
+        for offset_to_first, pointer_to_last in pointers:
+            line = make_mask(offset_to_first, pointer_to_last, num_pixels)
+            mask = np.concatenate([mask, line], axis=0)
+        lines = ma.array(pixels, mask = mask, fill_value = 0)
+        return lines, rest
+    else:
+        lines = pixels
+        return {'image' : pixels, 'valids' : pointers}, rest
+
 
 data_blocks['image-data'] = image_data_block
 
