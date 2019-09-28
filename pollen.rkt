@@ -8,6 +8,10 @@
          (only-in markdown parse-markdown))
 (provide (all-defined-out))
 
+(define is-draft? 
+  (and (getenv "POLLEN")
+       (string=? (getenv "POLLEN") "draft")))
+
 (define (is-tag? tag . names)
   (and (txexpr? tag) (member (get-tag tag) names)))
 
@@ -21,6 +25,11 @@
   (if (null? text)
     (format "<~a>" (rel-root path))
     (apply @ `("[" ,@text "](" ,(rel-root path) ")"))))
+; TODO
+; - Change paper to produce paths to papers+documents/
+; - Use symbols to point to a particular paper, don't re-type up the
+;   path every time.
+; - Improve the way that references are shown.
 (define (paper . elements) 
   (cond 
     [(symbol? (first elements))
@@ -54,8 +63,14 @@
 (define (just-mark . elements)
   (apply @ elements))
 ; These are only for the editor to see.
+; TODO
+; - See if you can move the transformation of todos out of the root
+;   tag and into here. Figure out how to make sure the splicing tag
+;   doesn't get in your way.
 (define (todo . elements)
-  (txexpr 'todo null null))
+  (if is-draft?
+    (txexpr 'todo null elements)
+    (txexpr 'todo null null)))
 ; ns: needs source
 (define ns just-mark)
 (define term em)
@@ -67,16 +82,20 @@
 ; stuff " by " stuff
 ; and will replace the "by" with X
 (define by "\u00d7")
+; TODO
+; - See if there is a way to make draft and doc-draft one element.
+; - Alter doc-draft so that the draft styles can be toggled on and
+;   off, and the draft section can be shrunk down. Shrunk can show
+;   some of the very top, and some big ellipsis in the center.
+(define (draft . elements)
+  (if is-draft? 
+    (apply @ elements)
+    (@ "")))
+(define (doc-draft . elements)
+  (if is-draft? 
+    (txexpr 'draft-content null elements)
+    (@ "")))
 
-(define under-construction
-  (->html
-    '(div 
-       ((class "construction-banner"))
-       (span
-         #x2622
-         (strong "UNDER HEAVY CONSTRUCTION!")
-         #x2622)
-       (div #x2b07))))
 (define coming-soon
   (->html
     '(div 
@@ -96,13 +115,45 @@
            (values 'start so-far)]
           [else (values 'start (append so-far (list current)))])))
     elements-without-todo)
-  (define (fix-todo elements)
-    (decode-elements 
-      elements
-      #:txexpr-elements-proc remove-todo))
-  (txexpr 'root null 
-          (parse-markdown 
-            (string-join 
-              (fix-todo elements)
-              ""))))
+  (define (fix-draft-elements elements)
+    (if (not is-draft?)
+      (decode-elements 
+        elements
+        #:txexpr-elements-proc remove-todo)
+      (decode-elements
+        elements
+        #:txexpr-proc
+        (λ (tx)
+           (cond
+             [(not (is-tag? tx 'todo 'draft-content)) tx]
+             [(is-tag? tx 'todo)
+              (->html
+                `(div ((class "todo"))
+                      "TODO: "
+                      ,@(parse-markdown 
+                          (string-join (get-elements tx)))))]
+             [(is-tag? tx 'draft-content)
+              (->html
+                `(div ((class "draft"))
+                      ,@(parse-markdown 
+                          (string-join (get-elements tx)))))])
+             ))))
+    (txexpr 'root null 
+            (parse-markdown 
+              (string-join 
+                (fix-draft-elements elements)
+                ""))))
   
+
+#| Probably won't use anymore: {{{
+ |(define under-construction
+ |  (->html
+ |    '(div 
+ |       ((class "construction-banner"))
+ |       (span
+ |         #x2622
+ |         (strong "UNDER HEAVY CONSTRUCTION!")
+ |         #x2622)
+ |       (div #x2b07))))
+ |
+ |#

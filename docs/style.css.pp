@@ -1,6 +1,7 @@
+#lang pollen
 /* Color Picker: <http://www.hslpicker.com/#bd9d00>*/
-
-
+◊(define construction-color "hsl(50, 100%, 73%)")
+◊(define draft-color "hsl(50, 0%, 50%)")
 code{
     white-space: pre-wrap;
     font-family: "fira mono",monospace;
@@ -82,7 +83,7 @@ pre {
 .construction-banner {
     height: 4rem;
     position: relative;
-    background-color: hsl(50, 100%, 73%);
+    background-color: ◊|construction-color|;
 }
 
 /*Source: <https://www.w3schools.com/howto/howto_css_center-vertical.asp>*/
@@ -122,5 +123,19 @@ h1 {
 }
 
 /* Draft Mode Options: {{{ ******************************************/
+◊draft{
 
+body {
+    border-left: 1px solid black;
+    border-right: 1px solid black;
+}
+
+.todo {
+    background-color: ◊|construction-color|;
+}
+.draft {
+    opacity: 0.5;
+}
+
+}
 /* }}} **************************************************************/
