@@ -96,27 +96,29 @@ value represents the reflected radiation for a 75m ◊by 75m section of
 Venus' surface. The center of the first pixel of the first line is the
 reference point of the contained image.
 
-◊under-construction 
+◊doc-draft{
 
 ◊todo{fix this up}
 
 Let's take a short break to sum this all up using our example F-BIDR.
 
-    ◊todo{re-do this after transforming how images are represented
-    into numpy arrays, because this is needlessly inconvenient to
-    read. I think it would make tutorials difficult.}
+◊todo{re-do this after transforming how images are represented
+into numpy arrays, because this is needlessly inconvenient to
+read. I think it would make tutorials difficult.}
 
-    from f_bidr import read_logical_records
-    from f_bidr_data import get_orbit_file_path as orbit
+```
+from f_bidr import read_logical_records
+from f_bidr_data import get_orbit_file_path as orbit
 
-    orb376FilePath = orbit(376, 'file_15', 3)
-    orb376 = read_logical_records(orb376FilePath)
-    # orb376[0] is the first logical record
-    print(orb376[0]['reference_lat']) # 89.3893814086914
-    print(orb376[0]['reference_lon']) # 317.643310546875
-    # orb376[0]['data'] is the image data
-    # orb376[0]['data'][0]['line'] is the first line of pixels
-    print(orb376[0]['data'][0]['line'][0]) # 0
+orb376FilePath = orbit(376, 'file_15', 3)
+orb376 = read_logical_records(orb376FilePath)
+# orb376[0] is the first logical record
+print(orb376[0]['reference_lat']) # 89.3893814086914
+print(orb376[0]['reference_lon']) # 317.643310546875
+# orb376[0]['data'] is the image data
+# orb376[0]['data'][0]['line'] is the first line of pixels
+print(orb376[0]['data'][0]['line'][0]) # 0
+```
 
 The reference latitude of the first logical record of our example
 "file_15" is ◊deg{89.39}, and the reference longitude is
@@ -153,3 +155,4 @@ main data that the logical record has.
 talk about valid/non-valid pixels, they have value 0, not all pixels
 with value 0 are invalid, what the different versions of an orbit are.
 Go figure that out.
+}
