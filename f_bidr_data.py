@@ -24,9 +24,10 @@ with open('record-order') as f:
         number = int(name[1:5])
         version = int(name.split('_')[-1])
         if number in orbits:
-            orbits[number].append(path)
+            # orbits[number].append(path)
+            orbits[number][version - 1] = path
         else:
-            orbits[number] = [path]
+            orbits[number] = {(version - 1): path}
 
 f_bidr_root = "http://pds-geosciences.wustl.edu/mgn/mgn-v-rdrs-5-bidr-full-res-v1/"
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -39,7 +40,13 @@ def gen_url(number, version, filename):
     return f'{f_bidr_root}{orbits[number][version - 1]}/{filename.upper()}'
 
 def gen_local_path(number, version, filename):
-    return os.path.join(data_root, orbits[number][version - 1], filename.upper())
+    try:
+        return os.path.join(data_root, orbits[number][version - 1], filename.upper())
+    except KeyError as e:
+        print(e)
+        raise e
+        # print("The version asked for was not present.")
+        # print("The available versions are
 
 # For the following functions, the version parameter should be the
 # same as is on the directory. For instance F0376_3 has version 3.
