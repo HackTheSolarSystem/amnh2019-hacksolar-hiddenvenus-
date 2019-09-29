@@ -181,6 +181,9 @@ def image_data_block(source, root_record, current):
     pointers[:, 0] = pointer_bytes[:, 0] + pointer_bytes[:, 1] * 256
     pointers[:, 1] = pointer_bytes[:, 2] + pointer_bytes[:, 3] * 256
 
+    # XXX: A bad hack, because building the mask takes significantly
+    # more time than not doing so. To build the mask, import
+    # build_mask and set it to True.
     if build_mask:
         # This is a shortcut to transform all of the pointers into
         # little-endian 
